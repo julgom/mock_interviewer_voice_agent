@@ -1,102 +1,28 @@
-'use client'
-
-import { useState, useEffect } from 'react'
-import Image from 'next/image'
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { ArrowRight } from "lucide-react"
 
-export default function InterviewInterface() {
-  const [file, setFile] = useState(null)
-  const [currentDate, setCurrentDate] = useState("");
-  const [currentTime, setCurrentTime] = useState("");
-
-  useEffect(() => {
-    // Update the date and time only on the client side
-    const updateDateTime = () => {
-      setCurrentDate(new Date().toLocaleDateString());
-      setCurrentTime(new Date().toLocaleTimeString());
-    };
-
-    updateDateTime(); // Set initial values
-    const intervalId = setInterval(updateDateTime, 1000); // Update every second
-
-    // Clear interval on component unmount
-    return () => clearInterval(intervalId);
-  }, []);
-
-  const handleFileChange = (event) => {
-    const selectedFile = event.target.files[0];
-    setFile(selectedFile);
-  };
-
+export default function Component() {
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Applicant's video feed */}
-      <div className="w-2/3 p-4">
-        <div className="bg-black h-full rounded-lg flex items-center justify-center">
-          <span className="text-white text-2xl">Applicant's Video Feed</span>
-        </div>
-      </div>
-
-      {/* Sidebar */}
-      <div className="w-1/3 bg-white p-4 flex flex-col">
-        {/* Interviewer's avatar */}
-        <div className="mb-6 flex items-center">
-          <div className="w-16 h-16 rounded-full bg-gray-300 mr-4 overflow-hidden">
-            <Image
-              src=""
-              alt="Interviewer Avatar"
-              width={64}
-              height={64}
-            />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold">Interviewer Name</h2>
-            <p className="text-gray-600">Position</p>
-          </div>
-        </div>
-
-        {/* Resume upload section */}
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-2">Upload Resume</h3>
-          <div className="space-y-2">
-            <Label htmlFor="resume">Select your resume (PDF format)</Label>
-            <Input
-              id="resume"
-              type="file"
-              accept=".pdf"
-              onChange={handleFileChange}
-            />
-            {file && (
-              <p className="text-sm text-gray-600">
-                Selected file: {file.name}
+    <div className="flex-1 flex items-center justify-center">
+      <section className="w-full">
+        <div className="container px-4 md:px-6">
+          <div className="flex flex-col items-center space-y-4 text-center">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none">
+                Welcome to<br/>
+                Career Development 
+              </h1>
+              <p className="mx-auto max-w-[700px] text-gray-500 md:text-xl dark:text-gray-400">
+                Exercise the skills you need to land the job.
               </p>
-            )}
-            <Button className="w-full">
-              Upload Resume
+            </div>
+            <Button className="inline-flex h-9 items-center justify-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-gray-50 shadow transition-colors hover:bg-gray-900/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-50/90 dark:focus-visible:ring-gray-300">
+              Sign in
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         </div>
-
-        {/* Additional interview information */}
-        <div className="flex-grow">
-          <h3 className="text-lg font-semibold mb-2">Interview Details</h3>
-          <p className="text-gray-600 mb-1">Date: {currentDate}</p>
-          <p className="text-gray-600 mb-1">Time: {currentTime}</p>
-          <p className="text-gray-600">Position: Software Developer</p>
-        </div>
-
-        {/* Interview controls */}
-        <div className="mt-auto">
-          <Button className="w-full mb-2" variant="outline">
-            End Interview
-          </Button>
-          <Button className="w-full">
-            Start Interview
-          </Button>
-        </div>
-      </div>
+      </section>
     </div>
   )
 }

@@ -53,7 +53,7 @@ export default function MockInterviewDashboard() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex-1 flex">
       {/* Main content area */}
       <div className="w-2/3 p-4 flex flex-col">
         {/* AI Interviewer video feed */}
@@ -67,7 +67,7 @@ export default function MockInterviewDashboard() {
             <h2 className="text-xl font-bold text-gray-800">Interview Progress</h2>
             <span className="text-green-600 font-semibold">{Math.round(progress)}% Complete</span>
           </div>
-          <Progress value={progress} className="w-full bg-gray-200" indicatorClassName="bg-green-500" />
+          <Progress value={progress} className="w-full bg-gray-200"/>
           <div className="mt-4">
             <span className="text-gray-600">Time Remaining: {Math.max(0, 45 - Math.floor(progress * 45 / 100))} minutes</span>
           </div>
@@ -75,7 +75,7 @@ export default function MockInterviewDashboard() {
       </div>
 
       {/* Sidebar */}
-      <div className="w-1/3 bg-white p-4 flex flex-col shadow-lg">
+      <div className="w-1/3 bg-white p-4 flex flex-col shadow-lg overflow-y-auto">
         <h1 className="text-2xl font-bold mb-6 text-gray-800">Mock Interview Dashboard</h1>
 
         {/* File upload section */}
@@ -89,30 +89,27 @@ export default function MockInterviewDashboard() {
                 type="file"
                 accept=".pdf"
                 onChange={(e) => handleFileChange(e, 'resume')}
-                className="border-gray-300 focus:border-green-500 focus:ring-green-500"
+                className="border-gray-300"
               />
               {resume && (
                 <p className="text-sm text-gray-600 mt-1">
                   Selected file: {resume.name}
                 </p>
               )}
-              <Button className="w-full">
-                Upload
-              </Button>
             </div>
             <div>
               <Label className="text-gray-600">Job Description</Label>
               <Tabs defaultValue="text" className="w-full space-y-2">
                 <TabsList className="bg-gray-100">
-                  <TabsTrigger value="text" className="data-[state=active]:bg-white data-[state=active]:text-green-600">Text Input</TabsTrigger>
-                  <TabsTrigger value="file" className="data-[state=active]:bg-white data-[state=active]:text-green-600">File Upload</TabsTrigger>
+                  <TabsTrigger value="text" className="data-[state=active]:bg-white data-[state=active]:text-teal-500">Text Input</TabsTrigger>
+                  <TabsTrigger value="file" className="data-[state=active]:bg-white data-[state=active]:text-teal-500">File Upload</TabsTrigger>
                 </TabsList>
                 <TabsContent value="text">
                   <Textarea
                     placeholder="Enter job description here..."
                     value={jobDescriptionText}
                     onChange={(e) => setJobDescriptionText(e.target.value)}
-                    className="border-gray-300 focus:border-green-500 focus:ring-green-500"
+                    className="border-gray-300 focus-visible:ring-transparent"
                   />
                 </TabsContent>
                 <TabsContent value="file">
@@ -121,7 +118,7 @@ export default function MockInterviewDashboard() {
                     type="file"
                     accept=".pdf"
                     onChange={(e) => handleFileChange(e, 'jobDescription')}
-                    className="border-gray-300 focus:border-green-500 focus:ring-green-500"
+                    className="border-gray-300"
                   />
                   {jobDescription && (
                     <p className="text-sm text-gray-600 mt-1">
@@ -129,8 +126,8 @@ export default function MockInterviewDashboard() {
                     </p>
                   )}
                 </TabsContent>
-                <Button className="w-full">
-                    Submit
+                <Button className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800">
+                  Submit
                 </Button>
               </Tabs>
             </div>
@@ -142,11 +139,11 @@ export default function MockInterviewDashboard() {
           <h3 className="text-lg font-semibold mb-2 text-gray-700">Select Interviewer</h3>
           <RadioGroup value={persona} onValueChange={setPersona}>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="female" id="female" className="border-gray-400 text-green-600" />
+              <RadioGroupItem value="female" id="female" className="border-gray-400 text-teal-500" />
               <Label htmlFor="female" className="text-gray-600">Female Voice</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="male" id="male" className="border-gray-400 text-green-600" />
+              <RadioGroupItem value="male" id="male" className="border-gray-400 text-teal-500" />
               <Label htmlFor="male" className="text-gray-600">Male Voice</Label>
             </div>
           </RadioGroup>
@@ -155,7 +152,7 @@ export default function MockInterviewDashboard() {
         {/* Interview controls */}
         <div className="mt-auto space-y-2">
           <Button 
-            className="w-full bg-green-500 hover:bg-green-600 text-white transition-colors duration-200 ease-in-out transform hover:scale-100 active:scale-95 cursor-pointer"
+            className="w-full bg-teal-400 hover:bg-teal-500 text-white transition-colors duration-200 ease-in-out transform hover:scale-100 active:scale-95 cursor-pointer"
             onClick={startInterview}
             //disabled={!resume || (!jobDescription && !jobDescriptionText) || interviewStarted}
           >
@@ -171,5 +168,5 @@ export default function MockInterviewDashboard() {
         </div>
       </div>
     </div>
-  )
+  );
 }
