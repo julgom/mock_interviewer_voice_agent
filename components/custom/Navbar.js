@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { User, LogOut } from 'lucide-react'
+import { SignedIn, SignedOut, UserButton, SignInButton } from '@clerk/nextjs'
 
 export default function Navbar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
@@ -43,7 +44,13 @@ export default function Navbar() {
             <span>Interview</span>
           </Link>
         </div>
-        <div className="relative" ref={profileMenuRef}>
+        <SignedOut>
+          <SignInButton />
+        </SignedOut>
+        <SignedIn>
+          <UserButton />
+        </SignedIn>
+        {/* <div className="relative" ref={profileMenuRef}>
           <button 
             onClick={toggleProfile}
             className="flex items-center space-x-2 focus:outline-none"
@@ -80,7 +87,7 @@ export default function Navbar() {
               </button>
             </div>
           )}
-        </div>
+        </div> */}
       </div>
     </nav>
   )

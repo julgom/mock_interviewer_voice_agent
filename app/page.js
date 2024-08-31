@@ -1,7 +1,23 @@
+'use client'
+
 import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
+import { useRouter } from "next/navigation";
+import { useClerk } from "@clerk/nextjs";
 
 export default function Component() {
+  // Clerk Sign in
+  // const router = useRouter();
+  // const clerk = useClerk();
+
+  // const handleSignIn = () => {
+  //   // Navigate to Clerk's sign-up page
+  //   clerk.openSignIn({
+  //     redirectUrl: "/interview", // Redirect to interview page after sign up
+  //   });
+  // };
+  // End Clerk Sign in
+
   return (
     <div className="flex-1 flex items-center justify-center">
       <section className="w-full">
@@ -16,10 +32,13 @@ export default function Component() {
                 Exercise the skills you need to land the job.
               </p>
             </div>
-            <Button className="inline-flex h-9 items-center justify-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-gray-50 shadow transition-colors hover:bg-gray-900/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-50/90 dark:focus-visible:ring-gray-300">
+            {/* <Button 
+              className="inline-flex h-9 items-center justify-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-gray-50 shadow transition-colors hover:bg-gray-900/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-50/90 dark:focus-visible:ring-gray-300"
+              //onClick={handleSignIn}
+            >
               Sign in
               <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            </Button> */}
           </div>
         </div>
       </section>
