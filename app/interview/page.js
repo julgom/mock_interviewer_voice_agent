@@ -64,7 +64,7 @@ export default function MockInterviewDashboard() {
         <div className="bg-white rounded-lg p-4 shadow-md">
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-xl font-bold text-gray-800">Interview Progress</h2>
-            <span className="text-green-600 font-semibold">{Math.round(progress)}% Complete</span>
+            <span className="text-gray-700 font-semibold">{Math.round(progress)}% Complete</span>
           </div>
           <Progress value={progress} className="w-full bg-gray-200"/>
           <div className="mt-4">
@@ -151,7 +151,7 @@ export default function MockInterviewDashboard() {
         {/* Interview controls */}
         <div className="mt-auto space-y-2">
           <Button 
-            className="w-full bg-teal-400 hover:bg-teal-500 text-white transition-colors duration-200 ease-in-out transform hover:scale-100 active:scale-95 cursor-pointer"
+            className="w-full bg-teal-500 hover:bg-teal-600 text-white transition-colors duration-200 ease-in-out transform hover:scale-100 active:scale-95 cursor-pointer"
             onClick={startInterview}
             //disabled={!resume || (!jobDescription && !jobDescriptionText) || interviewStarted}
           >
