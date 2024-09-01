@@ -8,34 +8,39 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// Video Interface
+import { VideoInterface } from "@/components/ui/video-interface";
+//
+import { useClerk } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
+// Firebase
+import { db } from "@/firebase";
+import { doc, writeBatch } from "firebase/firestore";
+//
+import axios from "axios";
+// Groq and Llama
 import Groq from "groq-sdk";
 import debounce from "lodash/debounce";
 
-import { VideoInterface } from "@/components/video-interface";
-
-import { useClerk } from "@clerk/nextjs";
-import { useUser } from "@clerk/nextjs";
-import { db } from "@/firebase";
-import { doc, writeBatch } from "firebase/firestore";
-
-import axios from "axios";
-
 export default function MockInterviewDashboard() {
+  const [resumeText, setResumeText] = useState("");
   const [resume, setResume] = useState(null);
   const [jobDescription, setJobDescription] = useState(null);
-  const [resumeText, setResumeText] = useState("");
   const [jobDescriptionText, setJobDescriptionText] = useState("");
-
   const [persona, setPersona] = useState("female");
   const [progress, setProgress] = useState(0);
   const intervalRef = useRef(null);
   const [interviewStarted, setInterviewStarted] = useState(false);
-  // For Transcription
+  // For Interview Transcription
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [transcription, setTranscription] = useState("");
+  const [aiResponses, setAiResponses] = useState([]);
+  const [currentTranscript, setCurrentTranscript] = useState("");
+  const debouncedGetResponse = useRef(null);
   const socketRef = useRef(null);
 
+  // User Authentification
   const { isLoaded, isSignedIn, user } = useUser();
   useEffect(() => {
     const initializeUser = async () => {
@@ -74,68 +79,53 @@ export default function MockInterviewDashboard() {
     initializeUser();
   }, [isLoaded, isSignedIn, user]);
 
-  const handleFileChange = (event, fileType) => {
-    const selectedFile = event.target.files[0];
-    if (fileType === "resume") {
-      setResume(selectedFile);
-    } else {
-      setJobDescription(selectedFile);
-    }
-  };
+  // For Generating LLM response to applicant with Groq and Llama
+  const groq = new Groq({
+    apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
+    dangerouslyAllowBrowser: true,
+  });
 
-  const handleSubmit = async () => {
-    if (resume && (jobDescription || jobDescriptionText)) {
-      let processResume = "";
-      let procesJobDescription = "";
-
-      // Process resume file
-      if (resume) {
-        //processResume = await fileToText(resume);
-        processResume = await fileToText(resume, "resume");
-      }
-
-      // Process job description file
-      if (jobDescription) {
-        //procesJobDescription = await fileToText(jobDescription);
-        procesJobDescription = await fileToText(
-          jobDescription,
-          "jobDescription"
-        );
-
-        //const jobDescriptionTextContent = await fileToText(jobDescription);
-        //jobDescriptionTextContent = jobDescriptionTextContent;
-      }
-      setResumeText(processResume);
-      setJobDescriptionText(procesJobDescription);
-      console.log("Resume Text:", resumeText);
-      console.log("Job Description Text:", jobDescriptionText);
-    } else {
-      alert("Please upload both a resume and a job description.");
-    }
-  };
-
-  const fileToText = async (file, type) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("type", type);
-
+  const getLlamaResponse = async (transcribedText) => {
+    console.log("getLlamaResponse called with:", transcribedText);
     try {
-      const response = await axios.post(
-        "http://localhost:5000/process-file",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      if (!process.env.NEXT_PUBLIC_GROQ_API_KEY) {
+        throw new Error("GROQ API key is not set");
+      }
 
-      return response.data.text;
+      const completion = await groq.chat.completions.create({
+        messages: [
+          {
+            role: "system",
+            content: `You are an AI interviewer with a ${persona} persona conducting a job interview for the position described as: ${jobDescriptionText}. Provide brief, relevant responses or follow-up questions.`,
+          },
+          {
+            role: "user",
+            content: transcribedText,
+          },
+        ],
+        model: "llama3-8b-8192",
+      });
+
+      console.log("Groq API response:", completion);
+
+      if (!completion.choices || completion.choices.length === 0) {
+        throw new Error("No choices returned from Groq API");
+      }
+
+      const responseContent = completion.choices[0]?.message?.content;
+      if (!responseContent) {
+        throw new Error("No content in Groq API response");
+      }
+
+      console.log("AI response:", responseContent);
+      return responseContent;
     } catch (error) {
-      console.error("Error uploading file:", error);
-      return "";
+      console.error("Error in getLlamaResponse:", error);
+      setError(`Error getting AI response: ${error.message}`);
+      return "I'm sorry, there was an error processing your response. Please check the console for more details.";
     }
   };
+  // End Generating LLM response to applicant with Groq and Llama
 
   const startInterview = () => {
     setInterviewStarted(true);
@@ -175,8 +165,23 @@ export default function MockInterviewDashboard() {
   };
 
   // Begin Handle Transcription
+  const processTranscript = useCallback(async (transcript) => {
+    setTranscription((prev) => prev + "\nUser: " + transcript);
+    const aiResponse = await getLlamaResponse(transcript);
+    //console.log("Setting AI response:", aiResponse);
+    setTranscription((prev) => prev + "\nAI: " + aiResponse);
+    setAiResponses((prev) => [...prev, aiResponse]);
+    setCurrentTranscript("");
+  }, []);
+
+  useEffect(() => {
+    debouncedGetResponse.current = debounce(processTranscript, 2000);
+    return () => debouncedGetResponse.current.cancel();
+  }, [processTranscript]);
+
   useEffect(() => {
     if (isRecording && mediaRecorder) {
+      console.log("Setting up WebSocket connection");
       const socket = new WebSocket("wss://api.deepgram.com/v1/listen", [
         "token",
         process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY,
@@ -184,16 +189,26 @@ export default function MockInterviewDashboard() {
       socketRef.current = socket;
 
       socket.onopen = () => {
+        console.log("WebSocket connection opened");
         mediaRecorder.addEventListener("dataavailable", (event) => {
           socket.send(event.data);
         });
         mediaRecorder.start(250);
       };
 
-      socket.onmessage = (message) => {
-        const received = JSON.parse(message.data);
-        const transcript = received.channel.alternatives[0].transcript;
-        setTranscription((prev) => prev + " " + transcript);
+      socket.onmessage = async (message) => {
+        try {
+          const received = JSON.parse(message.data);
+          const transcript = received.channel.alternatives[0].transcript;
+          if (transcript.trim()) {
+            console.log("Received transcript:", transcript);
+            setCurrentTranscript((prev) => prev + " " + transcript);
+            debouncedGetResponse.current(currentTranscript + " " + transcript);
+          }
+        } catch (error) {
+          console.error("Error processing WebSocket message:", error);
+          setError(`Error processing speech: ${error.message}`);
+        }
       };
 
       socket.onclose = () => {
@@ -210,7 +225,7 @@ export default function MockInterviewDashboard() {
 
   const startRecording = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream, { mimeType: "audio/mp4" });
+    const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
     setMediaRecorder(recorder);
     setIsRecording(true);
   };
@@ -219,6 +234,71 @@ export default function MockInterviewDashboard() {
     setIsRecording(false);
   };
   // End transcription Handle
+
+  const handleFileChange = (event, fileType) => {
+    const selectedFile = event.target.files[0];
+    if (fileType === "resume") {
+      setResume(selectedFile);
+    } else {
+      setJobDescription(selectedFile);
+    }
+  };
+
+  // For Processing Submission of Resume and Job Description
+  const handleSubmit = async () => {
+    if (resume && (jobDescription || jobDescriptionText)) {
+      let processResume = "";
+      let procesJobDescription = "";
+
+      // Process resume file
+      if (resume) {
+        //processResume = await fileToText(resume);
+        processResume = await fileToText(resume, "resume");
+      }
+
+      // Process job description file
+      if (jobDescription) {
+        //procesJobDescription = await fileToText(jobDescription);
+        procesJobDescription = await fileToText(
+          jobDescription,
+          "jobDescription"
+        );
+
+        //const jobDescriptionTextContent = await fileToText(jobDescription);
+        //jobDescriptionTextContent = jobDescriptionTextContent;
+      }
+      setResumeText(processResume);
+      setJobDescriptionText(procesJobDescription);
+      console.log("Resume Text:", resumeText);
+      console.log("Job Description Text:", jobDescriptionText);
+    } else {
+      alert("Please upload both a resume and a job description.");
+    }
+  };
+
+  // Utility function to extract text from file
+  const fileToText = async (file, type) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("type", type);
+
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/process-file",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      return response.data.text;
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      return "";
+    }
+  };
 
   return (
     <div className="flex-1 flex">
