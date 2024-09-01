@@ -1,8 +1,7 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "../components/custom/Navbar";
-import { ClerkProvider } from '@clerk/nextjs';
-import { dark } from '@clerk/themes';
+import { ClerkProvider } from "@clerk/nextjs";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -16,25 +15,23 @@ export default function RootLayout({ children }) {
     <ClerkProvider
       appearance={{
         variables: {
-          colorPrimary: '#008080', // Teal for primary actions
-          colorText: '#000000', // White text on dark backgrounds
-          colorBackground: '#ffffff', // Black background
-          colorBackgroundAlt: '#f0f0f0', // Light gray for alternative backgrounds
-          colorBorder: '#cccccc', // Light gray borders
-          colorBorderAlt: '#ffffff', // White borders for inputs
-          colorButton: '#008080', // Teal buttons
-          colorButtonText: '#ffffff', // White text on buttons
-          colorInputBorder: '#cccccc', // Light gray border for inputs
-        }
+          colorPrimary: "#008080", // Teal for primary actions
+          colorText: "#000000", // White text on dark backgrounds
+          colorBackground: "#ffffff", // Black background
+          colorBackgroundAlt: "#f0f0f0", // Light gray for alternative backgrounds
+          colorBorder: "#cccccc", // Light gray borders
+          colorBorderAlt: "#ffffff", // White borders for inputs
+          colorButton: "#008080", // Teal buttons
+          colorButtonText: "#ffffff", // White text on buttons
+          colorInputBorder: "#cccccc", // Light gray border for inputs
+        },
       }}
     >
       <html lang="en" className="h-full">
-          <body className={`${inter.className} flex flex-col min-h-screen`}>
-            <Navbar />
-            <main className="flex-1 flex flex-col">
-              {children}
-            </main>
-          </body>
+        <body className={`${inter.className} flex flex-col min-h-screen`}>
+          <Navbar />
+          <main className="flex-1 flex flex-col">{children}</main>
+        </body>
       </html>
     </ClerkProvider>
   );
