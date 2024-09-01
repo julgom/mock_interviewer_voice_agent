@@ -4,56 +4,16 @@ import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
 import { useRouter } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
-import {useUser} from '@clerk/nextjs'
-import { useEffect } from 'react';
-import { db } from '@/firebase';
-import {doc, writeBatch} from 'firebase/firestore'
+
 import { SignedOut } from '@clerk/nextjs'
 
 export default function Component() {
-  const {isLoaded, isSignedIn, user} = useUser()
-  useEffect(() => {
-    const initializeUser = async () => {
-      console.log("useUser Output:", { isLoaded, isSignedIn, user });
-        if (isLoaded && isSignedIn && user) {
-          try {
-            const name = user.fullName;
-            const email = user.primaryEmailAddress?.emailAddress;
-            console.log(email, name)
-  
-            // Create a write batch
-            const batch = writeBatch(db);
-  
-            // Reference to the user's document in Firestore
-            const userDocRef = doc(db, 'users', user.id);
-  
-            // Combine fields into a single object
-            const userData = {
-              name: name,
-              email: email
-            };
-  
-            // Set the document with the combined object
-            batch.set(userDocRef, userData, { merge: true });
-  
-            // Commit the batch
-            await batch.commit();
-  
-            console.log('User document initialized with name and email');
-          } catch (error) {
-            console.error('Error initializing user document:', error);
-          }
-        }
-    };
-
-    initializeUser();
-}, [isLoaded, isSignedIn, user]);
-
-
+ 
   const router = useRouter()
 
   const handleSignInClick = () => {
     router.push('/sign-in')
+    initializeUser();
   }
 
   return (
