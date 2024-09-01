@@ -135,10 +135,9 @@ export function VideoInterface() {
     setMainDisplay(mainDisplay === 'user' ? 'ai' : 'user')
   }
 
-  
   return (
     <div className="flex flex-col items-center justify-center h-full bg-transparent text-white">
-      <div className="relative w-full max-w-4xl aspect-video rounded-lg overflow-hidden">
+      <div className="relative w-full max-w-4xl flex-grow aspect-video rounded-lg overflow-hidden">
         {mainDisplay === 'user' ? (
           cameraOn ? (
             <video ref={videoRef} autoPlay className="w-full h-full object-cover" />
@@ -156,7 +155,7 @@ export function VideoInterface() {
           </div>
         )}
         <div
-          className="absolute bottom-4 right-4 w-48 h-32 rounded-lg overflow-hidden cursor-pointer"
+          className="absolute bottom-4 right-4 w-48 h-32 rounded-lg overflow-hidden cursor-pointer flex-shrink-0"
           onClick={switchDisplay}>
           {mainDisplay === 'user' ? (
             <div className="w-full h-full flex items-center justify-center bg-teal-500">
@@ -187,7 +186,7 @@ export function VideoInterface() {
           {cameraOn ? "Turn Off Camera" : "Turn On Camera"}
         </Button>
       </div>
-      </div>
+    </div>
   );
-
+  
 }
