@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,16 +8,17 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Groq from "groq-sdk";
+import debounce from "lodash/debounce";
 
-import { VideoInterface } from "@/components/video-interface"
+import { VideoInterface } from "@/components/video-interface";
 
 import { useClerk } from "@clerk/nextjs";
-import {useUser} from '@clerk/nextjs'
-import { db } from '@/firebase';
-import {doc, writeBatch} from 'firebase/firestore'
+import { useUser } from "@clerk/nextjs";
+import { db } from "@/firebase";
+import { doc, writeBatch } from "firebase/firestore";
 
-import axios from 'axios';
-
+import axios from "axios";
 
 export default function MockInterviewDashboard() {
   const [resume, setResume] = useState(null);
@@ -35,45 +36,43 @@ export default function MockInterviewDashboard() {
   const [transcription, setTranscription] = useState("");
   const socketRef = useRef(null);
 
-
-  const {isLoaded, isSignedIn, user} = useUser()
+  const { isLoaded, isSignedIn, user } = useUser();
   useEffect(() => {
     const initializeUser = async () => {
       console.log("useUser Output:", { isLoaded, isSignedIn, user });
-        if (isLoaded && isSignedIn && user) {
-          try {
-            const name = user.fullName;
-            const email = user.primaryEmailAddress?.emailAddress;
-            console.log(email, name)
-  
-            // Create a write batch
-            const batch = writeBatch(db);
-  
-            // Reference to the user's document in Firestore
-            const userDocRef = doc(db, 'users', user.id);
-  
-            // Combine fields into a single object
-            const userData = {
-              name: name,
-              email: email
-            };
-  
-            // Set the document with the combined object
-            batch.set(userDocRef, userData, { merge: true });
-  
-            // Commit the batch
-            await batch.commit();
-  
-            console.log('User document initialized with name and email');
-          } catch (error) {
-            console.error('Error initializing user document:', error);
-          }
+      if (isLoaded && isSignedIn && user) {
+        try {
+          const name = user.fullName;
+          const email = user.primaryEmailAddress?.emailAddress;
+          console.log(email, name);
+
+          // Create a write batch
+          const batch = writeBatch(db);
+
+          // Reference to the user's document in Firestore
+          const userDocRef = doc(db, "users", user.id);
+
+          // Combine fields into a single object
+          const userData = {
+            name: name,
+            email: email,
+          };
+
+          // Set the document with the combined object
+          batch.set(userDocRef, userData, { merge: true });
+
+          // Commit the batch
+          await batch.commit();
+
+          console.log("User document initialized with name and email");
+        } catch (error) {
+          console.error("Error initializing user document:", error);
         }
+      }
     };
 
     initializeUser();
-}, [isLoaded, isSignedIn, user]);
-
+  }, [isLoaded, isSignedIn, user]);
 
   const handleFileChange = (event, fileType) => {
     const selectedFile = event.target.files[0];
@@ -84,7 +83,6 @@ export default function MockInterviewDashboard() {
     }
   };
 
-
   const handleSubmit = async () => {
     if (resume && (jobDescription || jobDescriptionText)) {
       let processResume = "";
@@ -93,20 +91,22 @@ export default function MockInterviewDashboard() {
       // Process resume file
       if (resume) {
         //processResume = await fileToText(resume);
-        processResume = await fileToText(resume, 'resume');
-        
+        processResume = await fileToText(resume, "resume");
       }
 
       // Process job description file
       if (jobDescription) {
         //procesJobDescription = await fileToText(jobDescription);
-        procesJobDescription = await fileToText(jobDescription, 'jobDescription');
+        procesJobDescription = await fileToText(
+          jobDescription,
+          "jobDescription"
+        );
 
-         //const jobDescriptionTextContent = await fileToText(jobDescription);
-         //jobDescriptionTextContent = jobDescriptionTextContent;
-      } 
-      setResumeText(processResume)
-      setJobDescriptionText(procesJobDescription)
+        //const jobDescriptionTextContent = await fileToText(jobDescription);
+        //jobDescriptionTextContent = jobDescriptionTextContent;
+      }
+      setResumeText(processResume);
+      setJobDescriptionText(procesJobDescription);
       console.log("Resume Text:", resumeText);
       console.log("Job Description Text:", jobDescriptionText);
     } else {
@@ -116,24 +116,27 @@ export default function MockInterviewDashboard() {
 
   const fileToText = async (file, type) => {
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', type);
-  
+    formData.append("file", file);
+    formData.append("type", type);
+
     try {
-      const response = await axios.post('http://localhost:5000/process-file', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
+      const response = await axios.post(
+        "http://localhost:5000/process-file",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
         }
-      });
-  
+      );
+
       return response.data.text;
     } catch (error) {
-      console.error('Error uploading file:', error);
-      return '';
+      console.error("Error uploading file:", error);
+      return "";
     }
   };
-  
-  
+
   const startInterview = () => {
     setInterviewStarted(true);
     startRecording();
@@ -216,14 +219,12 @@ export default function MockInterviewDashboard() {
     setIsRecording(false);
   };
   // End transcription Handle
-  
- 
 
   return (
     <div className="flex-1 flex">
       <div className="w-2/3 p-4 flex flex-col">
         <VideoInterface />
-        
+
         <div className="bg-white rounded-lg p-4 shadow-md">
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-xl font-bold text-gray-800">
@@ -292,10 +293,8 @@ export default function MockInterviewDashboard() {
                     }}
                     className="border-gray-300 focus-visible:ring-transparent"
                   />
-                  
                 </TabsContent>
                 <TabsContent value="file">
-                  
                   <Input
                     id="jobDescription"
                     type="file"
@@ -309,8 +308,10 @@ export default function MockInterviewDashboard() {
                     </p>
                   )}
                 </TabsContent>
-                <Button className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800" onClick={handleSubmit}
-        >
+                <Button
+                  className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800"
+                  onClick={handleSubmit}
+                >
                   Submit
                 </Button>
               </Tabs>
@@ -395,11 +396,61 @@ export default function MockInterviewDashboard() {
   const [progress, setProgress] = useState(0);
   const intervalRef = useRef(null);
   const [interviewStarted, setInterviewStarted] = useState(false);
+
   // For Transcription
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [transcription, setTranscription] = useState("");
+  const [aiResponses, setAiResponses] = useState([]);
   const socketRef = useRef(null);
+  const [currentTranscript, setCurrentTranscript] = useState("");
+  const debouncedGetResponse = useRef(null);
+
+  const groq = new Groq({
+    apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
+    dangerouslyAllowBrowser: true,
+  });
+
+  const getLlamaResponse = async (transcribedText) => {
+    console.log("getLlamaResponse called with:", transcribedText);
+    try {
+      if (!process.env.NEXT_PUBLIC_GROQ_API_KEY) {
+        throw new Error("GROQ API key is not set");
+      }
+
+      const completion = await groq.chat.completions.create({
+        messages: [
+          {
+            role: "system",
+            content: `You are an AI interviewer with a ${persona} persona conducting a job interview for the position described as: ${jobDescriptionText}. Provide brief, relevant responses or follow-up questions.`,
+          },
+          {
+            role: "user",
+            content: transcribedText,
+          },
+        ],
+        model: "llama3-8b-8192",
+      });
+
+      console.log("Groq API response:", completion);
+
+      if (!completion.choices || completion.choices.length === 0) {
+        throw new Error("No choices returned from Groq API");
+      }
+
+      const responseContent = completion.choices[0]?.message?.content;
+      if (!responseContent) {
+        throw new Error("No content in Groq API response");
+      }
+
+      console.log("AI response:", responseContent);
+      return responseContent;
+    } catch (error) {
+      console.error("Error in getLlamaResponse:", error);
+      setError(`Error getting AI response: ${error.message}`);
+      return "I'm sorry, there was an error processing your response. Please check the console for more details.";
+    }
+  };
 
   const handleFileChange = (event, fileType) => {
     const selectedFile = event.target.files[0];
@@ -448,8 +499,23 @@ export default function MockInterviewDashboard() {
   };
 
   // Begin Handle Transcription
+  const processTranscript = useCallback(async (transcript) => {
+    setTranscription((prev) => prev + "\nUser: " + transcript);
+    const aiResponse = await getLlamaResponse(transcript);
+    //console.log("Setting AI response:", aiResponse);
+    setTranscription((prev) => prev + "\nAI: " + aiResponse);
+    setAiResponses((prev) => [...prev, aiResponse]);
+    setCurrentTranscript("");
+  }, []);
+
+  useEffect(() => {
+    debouncedGetResponse.current = debounce(processTranscript, 2000);
+    return () => debouncedGetResponse.current.cancel();
+  }, [processTranscript]);
+
   useEffect(() => {
     if (isRecording && mediaRecorder) {
+      console.log("Setting up WebSocket connection");
       const socket = new WebSocket("wss://api.deepgram.com/v1/listen", [
         "token",
         process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY,
@@ -457,16 +523,26 @@ export default function MockInterviewDashboard() {
       socketRef.current = socket;
 
       socket.onopen = () => {
+        console.log("WebSocket connection opened");
         mediaRecorder.addEventListener("dataavailable", (event) => {
           socket.send(event.data);
         });
         mediaRecorder.start(250);
       };
 
-      socket.onmessage = (message) => {
-        const received = JSON.parse(message.data);
-        const transcript = received.channel.alternatives[0].transcript;
-        setTranscription((prev) => prev + " " + transcript);
+      socket.onmessage = async (message) => {
+        try {
+          const received = JSON.parse(message.data);
+          const transcript = received.channel.alternatives[0].transcript;
+          if (transcript.trim()) {
+            console.log("Received transcript:", transcript);
+            setCurrentTranscript((prev) => prev + " " + transcript);
+            debouncedGetResponse.current(currentTranscript + " " + transcript);
+          }
+        } catch (error) {
+          console.error("Error processing WebSocket message:", error);
+          setError(`Error processing speech: ${error.message}`);
+        }
       };
 
       socket.onclose = () => {
@@ -537,136 +613,141 @@ export default function MockInterviewDashboard() {
   return (
     <div className="flex-1 flex">
       <div className="w-2/3 p-4 flex flex-col">
-        <div className="bg-black flex-grow rounded-lg flex items-center justify-center mb-4 border-4">
+        <div className="bg-black flex-grow rounded-lg flex items-center justify-center mb-4 border-4 relative">
           <span className="text-white text-2xl">AI Interviewer Video Feed</span>
-        </div>
+          {/* Applicant video feed inset */
+//           <div className="absolute bottom-4 right-4 w-1/4 h-1/4 bg-gray-800 rounded-lg overflow-hidden border-2 border-white">
+//             <div className="w-full h-full flex items-center justify-center">
+//               <span className="text-white text-xs">Applicant Feed</span>
+//             </div>
+//           </div>
+//         </div>
 
-        <div className="bg-white rounded-lg p-4 shadow-md">
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-xl font-bold text-gray-800">
-              Interview Progress
-            </h2>
-            <span className="text-gray-700 font-semibold">
-              {Math.round(progress)}% Complete
-            </span>
-          </div>
-          <Progress value={progress} className="w-full bg-gray-200" />
-          <div className="mt-4">
-            <span className="text-gray-600">
-              Time Remaining:{" "}
-              {Math.max(0, 45 - Math.floor((progress * 45) / 100))} minutes
-            </span>
-          </div>
-        </div>
-      </div>
+//         <div className="bg-white rounded-lg p-4 shadow-md">
+//           <div className="flex justify-between items-center mb-2">
+//             <h2 className="text-xl font-bold text-gray-800">
+//               Interview Progress
+//             </h2>
+//             <span className="text-gray-700 font-semibold">
+//               {Math.round(progress)}% Complete
+//             </span>
+//           </div>
+//           <Progress value={progress} className="w-full bg-gray-200" />
+//           <div className="mt-4">
+//             <span className="text-gray-600">
+//               Time Remaining:{" "}
+//               {Math.max(0, 45 - Math.floor((progress * 45) / 100))} minutes
+//             </span>
+//           </div>
+//         </div>
+//       </div>
 
-      <div className="w-1/3 bg-white p-4 flex flex-col shadow-lg overflow-y-auto">
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-2 text-gray-700">
-            Upload Documents
-          </h3>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="resume" className="text-gray-600">
-                Select your resume (PDF format)
-              </Label>
-              <Input
-                id="resume"
-                type="file"
-                accept=".pdf"
-                onChange={(e) => handleFileChange(e, "resume")}
-                className="border-gray-300"
-              />
-              {resume && (
-                <p className="text-sm text-gray-600 mt-1">
-                  Selected file: {resume.name}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label className="text-gray-600">Job Description</Label>
-              <Tabs defaultValue="text" className="w-full space-y-2">
-                <TabsList className="bg-gray-100">
-                  <TabsTrigger
-                    value="text"
-                    className="data-[state=active]:bg-white data-[state=active]:text-teal-500"
-                  >
-                    Text Input
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="file"
-                    className="data-[state=active]:bg-white data-[state=active]:text-teal-500"
-                  >
-                    File Upload
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="text">
-                  <Textarea
-                    placeholder="Enter job description here..."
-                    value={jobDescriptionText}
-                    onChange={(e) => setJobDescriptionText(e.target.value)}
-                    className="border-gray-300 focus-visible:ring-transparent"
-                  />
-                </TabsContent>
-                <TabsContent value="file">
-                  <Input
-                    id="jobDescription"
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => handleFileChange(e, "jobDescription")}
-                    className="border-gray-300"
-                  />
-                  {jobDescription && (
-                    <p className="text-sm text-gray-600 mt-1">
-                      Selected file: {jobDescription.name}
-                    </p>
-                  )}
-                </TabsContent>
-                <Button className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800" onClick={handleSubmit}>
-                  Submit
-                </Button>
-              </Tabs>
-            </div>
-          </div>
-        </div>
+//       <div className="w-1/3 bg-white p-4 flex flex-col shadow-lg overflow-y-auto">
+//         <div className="mb-6">
+//           <h3 className="text-lg font-semibold mb-2 text-gray-700">
+//             Upload Documents
+//           </h3>
+//           <div className="space-y-4">
+//             <div className="space-y-2">
+//               <Label htmlFor="resume" className="text-gray-600">
+//                 Select your resume (PDF format)
+//               </Label>
+//               <Input
+//                 id="resume"
+//                 type="file"
+//                 accept=".pdf"
+//                 onChange={(e) => handleFileChange(e, "resume")}
+//                 className="border-gray-300"
+//               />
+//               {resume && (
+//                 <p className="text-sm text-gray-600 mt-1">
+//                   Selected file: {resume.name}
+//                 </p>
+//               )}
+//             </div>
+//             <div>
+//               <Label className="text-gray-600">Job Description</Label>
+//               <Tabs defaultValue="text" className="w-full space-y-2">
+//                 <TabsList className="bg-gray-100">
+//                   <TabsTrigger
+//                     value="text"
+//                     className="data-[state=active]:bg-white data-[state=active]:text-teal-500"
+//                   >
+//                     Text Input
+//                   </TabsTrigger>
+//                   <TabsTrigger
+//                     value="file"
+//                     className="data-[state=active]:bg-white data-[state=active]:text-teal-500"
+//                   >
+//                     File Upload
+//                   </TabsTrigger>
+//                 </TabsList>
+//                 <TabsContent value="text">
+//                   <Textarea
+//                     placeholder="Enter job description here..."
+//                     value={jobDescriptionText}
+//                     onChange={(e) => setJobDescriptionText(e.target.value)}
+//                     className="border-gray-300 focus-visible:ring-transparent"
+//                   />
+//                 </TabsContent>
+//                 <TabsContent value="file">
+//                   <Input
+//                     id="jobDescription"
+//                     type="file"
+//                     accept=".pdf"
+//                     onChange={(e) => handleFileChange(e, "jobDescription")}
+//                     className="border-gray-300"
+//                   />
+//                   {jobDescription && (
+//                     <p className="text-sm text-gray-600 mt-1">
+//                       Selected file: {jobDescription.name}
+//                     </p>
+//                   )}
+//                 </TabsContent>
+//                 <Button className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800" onClick={handleSubmit}>
+//                   Submit
+//                 </Button>
+//               </Tabs>
+//             </div>
+//           </div>
+//         </div>
 
-        <div className="flex-1 mb-4">
-          <Textarea
-            value={transcription}
-            readOnly
-            placeholder="Transcription will appear here..."
-            className="w-full border-gray-300"
-          />
-        </div>
+//         <div className="flex-1 mb-4">
+//           <Textarea
+//             value={transcription}
+//             readOnly
+//             placeholder="Transcription will appear here..."
+//             className="w-full border-gray-300"
+//           />
+//         </div>
 
-        <div className="flex justify-between space-x-2">
-          <Button
-            onClick={startInterview}
-            className={`w-1/2 bg-blue-500 hover:bg-blue-600 text-white ${
-              interviewStarted ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-            disabled={interviewStarted}
-          >
-            Start Interview
-          </Button>
-          <Button
-            onClick={endInterview}
-            className={`w-1/2 bg-red-500 hover:bg-red-600 text-white ${
-              !interviewStarted ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-            disabled={!interviewStarted}
-          >
-            End Interview
-          </Button>
-        </div>
-        <Button
-          onClick={handleSubmit}
-          className="mt-4 w-full bg-green-500 hover:bg-green-600 text-white"
-        >
-          Submit
-        </Button>
-      </div>
-    </div>
-  );
-}
-*/
+//         <div className="flex justify-between space-x-2">
+//           <Button
+//             onClick={startInterview}
+//             className={`w-1/2 bg-blue-500 hover:bg-blue-600 text-white ${
+//               interviewStarted ? "opacity-50 cursor-not-allowed" : ""
+//             }`}
+//             disabled={interviewStarted}
+//           >
+//             Start Interview
+//           </Button>
+//           <Button
+//             onClick={endInterview}
+//             className={`w-1/2 bg-red-500 hover:bg-red-600 text-white ${
+//               !interviewStarted ? "opacity-50 cursor-not-allowed" : ""
+//             }`}
+//             disabled={!interviewStarted}
+//           >
+//             End Interview
+//           </Button>
+//         </div>
+//         <Button
+//           onClick={handleSubmit}
+//           className="mt-4 w-full bg-green-500 hover:bg-green-600 text-white"
+//         >
+//           Submit
+//         </Button>
+//       </div>
+//     </div>
+//   );
+// }
