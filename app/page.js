@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-
 import { SignedOut } from "@clerk/nextjs";
 
 export default function Component() {

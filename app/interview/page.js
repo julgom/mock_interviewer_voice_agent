@@ -11,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // Video Interface
 import { VideoInterface } from "@/components/ui/video-interface";
 //
-import { useClerk } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
 // Firebase
 import { db } from "@/firebase";
@@ -39,6 +38,10 @@ export default function MockInterviewDashboard() {
   const [currentTranscript, setCurrentTranscript] = useState("");
   const debouncedGetResponse = useRef(null);
   const socketRef = useRef(null);
+  // For Text to Audio
+  const [audioQueue, setAudioQueue] = useState([]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef(null);
 
   // User Authentification
   const { isLoaded, isSignedIn, user } = useUser();
@@ -78,6 +81,59 @@ export default function MockInterviewDashboard() {
 
     initializeUser();
   }, [isLoaded, isSignedIn, user]);
+
+  // Begin For Text to Speech
+  const convertTextToSpeech = async (text) => {
+    try {
+      const response = await axios.post(
+        "https://api.deepgram.com/v1/speak",
+        { text },
+        {
+          headers: {
+            Authorization: `Token ${process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          responseType: "arraybuffer",
+        }
+      );
+
+      const audioBlob = new Blob([response.data], { type: "audio/wav" });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      return audioUrl;
+    } catch (error) {
+      console.error("Error converting text to speech:", error);
+      setError(`Error converting text to speech: ${error.message}`);
+      return null;
+    }
+  };
+
+  const playNextInQueue = useCallback(() => {
+    if (audioQueue.length > 0 && !isPlaying && audioRef.current) {
+      setIsPlaying(true);
+      const nextAudio = audioQueue[0];
+      audioRef.current.src = nextAudio;
+      audioRef.current.play();
+    }
+  }, [audioQueue, isPlaying]);
+
+  useEffect(() => {
+    // Initialize Audio object on the client side
+    audioRef.current = new Audio();
+  }, []);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.onended = () => {
+        setIsPlaying(false);
+        setAudioQueue((prevQueue) => prevQueue.slice(1));
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    playNextInQueue();
+  }, [audioQueue, playNextInQueue]);
+  // End for Text to Speech
 
   // For Generating LLM response to applicant with Groq and Llama
   const groq = new Groq({
@@ -168,10 +224,15 @@ export default function MockInterviewDashboard() {
   const processTranscript = useCallback(async (transcript) => {
     setTranscription((prev) => prev + "\nUser: " + transcript);
     const aiResponse = await getLlamaResponse(transcript);
-    //console.log("Setting AI response:", aiResponse);
     setTranscription((prev) => prev + "\nAI: " + aiResponse);
     setAiResponses((prev) => [...prev, aiResponse]);
     setCurrentTranscript("");
+
+    // Convert AI response to speech
+    const audioUrl = await convertTextToSpeech(aiResponse);
+    if (audioUrl) {
+      setAudioQueue((prevQueue) => [...prevQueue, audioUrl]);
+    }
   }, []);
 
   useEffect(() => {
