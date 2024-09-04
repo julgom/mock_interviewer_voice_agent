@@ -33,6 +33,7 @@
     "lucide-react": "^0.436.0",
     "microphone-stream": "^6.0.1",
     "next": "14.2.7",
+    "pdfjs-dist": "^4.6.82",
     "react": "^18",
     "react-dom": "^18",
     "react-filepond": "^7.1.2",
