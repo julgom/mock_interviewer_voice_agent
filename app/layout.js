@@ -16,8 +16,8 @@ export default function RootLayout({ children }) {
       appearance={{
         variables: {
           colorPrimary: "#008080", // Teal for primary actions
-          colorText: "#000000", // White text on dark backgrounds
-          colorBackground: "#ffffff", // Black background
+          colorText: "#000000", // Black text on dark backgrounds
+          colorBackground: "#ffffff", // White background
           colorBackgroundAlt: "#f0f0f0", // Light gray for alternative backgrounds
           colorBorder: "#cccccc", // Light gray borders
           colorBorderAlt: "#ffffff", // White borders for inputs

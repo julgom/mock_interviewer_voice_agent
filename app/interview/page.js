@@ -10,48 +10,42 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // Video Interface
 import { VideoInterface } from "@/components/ui/video-interface";
-//
+// Clerk User
 import { useUser } from "@clerk/nextjs";
 // Firebase
 import { db } from "@/firebase";
 import { doc, writeBatch } from "firebase/firestore";
-//
+// Axios Fetch
 import axios from "axios";
 // Groq and Llama
 import Groq from "groq-sdk";
-import debounce from "lodash/debounce";
 // For PDF parsing
 import * as pdfjsLib from "pdfjs-dist/webpack";
 
 export default function MockInterviewDashboard() {
-  const [resumeText, setResumeText] = useState("");
-  const [resume, setResume] = useState(null);
-  const [jobDescription, setJobDescription] = useState(null);
-  const [jobDescriptionText, setJobDescriptionText] = useState("");
-  const [persona, setPersona] = useState("female");
-  const [progress, setProgress] = useState(0);
-  const intervalRef = useRef(null);
-  const [interviewStarted, setInterviewStarted] = useState(false);
-  // For Interview Transcription
   const [isRecording, setIsRecording] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState(null);
   const [transcription, setTranscription] = useState("");
-  const [aiResponses, setAiResponses] = useState([]);
-  const [currentTranscript, setCurrentTranscript] = useState("");
-  const debouncedGetResponse = useRef(null);
-  const socketRef = useRef(null);
-  const [conversationHistory, setConversationHistory] = useState([]);
-  // For Text to Audio
+  const conversationHistoryRef = useRef([]);
   const [audioQueue, setAudioQueue] = useState([]);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isAudioInitialized, setIsAudioInitialized] = useState(false);
   const audioRef = useRef(null);
-  // State for selecting voice
-  const [selectedVoice, setSelectedVoice] = useState("aura-asteria-en");
-  // For parsed Resume and Job description PDFs
-  const [parsedResumeText, setParsedResumeText] = useState("");
-  const [parsedJobDescriptionText, setParsedJobDescriptionText] = useState("");
-  //
-  const [currentJobDescription, setCurrentJobDescription] = useState("");
+  const socketRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const [progress, setProgress] = useState(0);
+  const [persona, setPersona] = useState("female");
+  const selectedVoiceRef = useRef("aura-asteria-en");
+  const [resumeText, setResumeText] = useState("");
+  const resumeTextRef = useRef("");
+  const intervalRef = useRef(null);
+  const jobDescriptionRef = useRef("");
+  const [jobDescription, setJobDescription] = useState("");
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
+  const groq = new Groq({
+    apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
+    dangerouslyAllowBrowser: true,
+  });
 
   // User Authentification
   const { isLoaded, isSignedIn, user } = useUser();
@@ -92,116 +86,236 @@ export default function MockInterviewDashboard() {
     initializeUser();
   }, [isLoaded, isSignedIn, user]);
 
-  // Begin For Text to Speech
-  const selectedVoiceRef = useRef("aura-asteria-en");
-
-  useEffect(() => {
-    selectedVoiceRef.current = selectedVoice;
-  }, [selectedVoice]);
-
-  const convertTextToSpeech = async (text) => {
+  // Generate Report
+  const generateReport = async () => {
+    setIsGeneratingReport(true);
     try {
-      const currentVoice = selectedVoiceRef.current;
-      console.log("Sending request to Deepgram with:", {
-        text,
-        model: currentVoice,
-      });
-      const response = await axios.post(
-        `https://api.deepgram.com/v1/speak?model=${currentVoice}`,
-        {
-          text,
-        },
-        {
-          headers: {
-            Authorization: `Token ${process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          responseType: "arraybuffer",
-        }
-      );
+      // Process the transcript
+      const formattedTranscript = conversationHistoryRef.current
+        .map((msg) => {
+          let content = msg.content.trim();
 
-      const audioBlob = new Blob([response.data], { type: "audio/wav" });
-      const audioUrl = URL.createObjectURL(audioBlob);
-      return audioUrl;
-    } catch (error) {
-      console.error("Error converting text to speech:", error);
-      return null;
-    }
-  };
+          // Capitalize the first letter
+          content = content.charAt(0).toUpperCase() + content.slice(1);
 
-  // Update the persona state change handler to also set the voice
-  const handlePersonaChange = useCallback((value) => {
-    const newVoice = value === "male" ? "aura-arcas-en" : "aura-asteria-en";
-    setPersona(value);
-    setSelectedVoice(newVoice);
-    selectedVoiceRef.current = newVoice;
-    console.log("Voice changed to:", newVoice);
-  }, []);
-
-  const playNextInQueue = useCallback(() => {
-    if (audioQueue.length > 0 && !isPlaying && audioRef.current) {
-      setIsPlaying(true);
-      const nextAudio = audioQueue[0];
-      audioRef.current.src = nextAudio;
-      audioRef.current.play();
-    }
-  }, [audioQueue, isPlaying]);
-
-  useEffect(() => {
-    // Initialize Audio object on the client side
-    audioRef.current = new Audio();
-  }, []);
-
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.onended = () => {
-        setIsPlaying(false);
-        setAudioQueue((prevQueue) => prevQueue.slice(1));
-      };
-    }
-  }, []);
-
-  useEffect(() => {
-    playNextInQueue();
-  }, [audioQueue, playNextInQueue]);
-  // End for Text to Speech
-
-  // For Generating LLM response to applicant with Groq and Llama
-  const groq = new Groq({
-    apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
-    dangerouslyAllowBrowser: true,
-  });
-
-  const getLlamaResponse = async (transcribedText) => {
-    console.log("getLlamaResponse transcribedText: ", transcribedText);
-    console.log(
-      "getLlamaResponse Current Job Description:",
-      currentJobDescription
-    );
-    console.log("getLlamaResponse Parsed Resume Text:", parsedResumeText);
-    try {
-      if (!process.env.NEXT_PUBLIC_GROQ_API_KEY) {
-        throw new Error("GROQ API key is not set");
-      }
-
-      const updatedHistory = [
-        ...conversationHistory,
-        { role: "user", content: transcribedText },
-      ];
+          if (msg.role === "user") {
+            return `You: ${content}`;
+          } else if (msg.role === "assistant") {
+            return `Interviewer: ${content}`;
+          }
+          return `${msg.role}: ${content}`; // For any other roles, if they exist
+        })
+        .join("\n");
 
       const completion = await groq.chat.completions.create({
         messages: [
           {
             role: "system",
             content: `
-              You are an AI interviewer with a ${persona} persona conducting a job interview for the position of ${currentJobDescription}.
-              The candidate's resume contains the following information:
-              ${parsedResumeText}
-              
-              Instructions for your responses:
-              1. Keep your responses brief and to the point, ideally no more than 2-3 sentences.
-              2. Ask only one question at a time.
-              3. Focus on the most relevant aspects of the candidate's experience in relation to the job description.
+                You are an expert interview coach. Analyze the following interview transcript and provide:
+                1. A rating out of 10
+                2. Three key positives
+                3. Three areas for improvement
+                4. Three general tips for interview preparation
+                Address the interviewee directly using "you" and "your" instead of "the candidate," "the interviewee," or "the applicant."
+                Format your response in HTML, using the following structure:
+                <h2>Interview Analysis</h2>
+                <p><strong>Rating:</strong> [Your rating]/10</p>
+                <p>[Your analysis paragraph]</p>
+                <h3>Three Key Positives:</h3>
+                <ul>
+                  <li>[Positive 1]</li>
+                  <li>[Positive 2]</li>
+                  <li>[Positive 3]</li>
+                </ul>
+                <h3>Three Areas for Improvement:</h3>
+                <ul>
+                  <li>[Area 1]</li>
+                  <li>[Area 2]</li>
+                  <li>[Area 3]</li>
+                </ul>
+                <h3>Three General Tips for Interview Preparation:</h3>
+                <ul>
+                  <li>[Tip 1]</li>
+                  <li>[Tip 2]</li>
+                  <li>[Tip 3]</li>
+                </ul>
+              `,
+          },
+          {
+            role: "user",
+            content: formattedTranscript,
+          },
+        ],
+        model: "llama3-8b-8192",
+        max_tokens: 1000,
+        temperature: 0.7,
+      });
+
+      const aiReport = completion.choices[0]?.message?.content;
+
+      // Wrap the AI report and transcript in a basic HTML structure
+      const htmlReport = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Your Interview Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            h1, h2, h3 { color: #2c3e50; }
+            ul { margin-bottom: 20px; }
+            pre { white-space: pre-wrap; word-wrap: break-word; background-color: #f8f8f8; padding: 15px; border-radius: 5px; }
+          </style>
+        </head>
+        <body>
+          <h1>Your Interview Report</h1>
+          ${aiReport}
+          <h2>Interview Transcript</h2>
+          <pre>${formattedTranscript}</pre>
+        </body>
+        </html>
+      `;
+
+      // Get the user's email address
+      const userEmail = user.primaryEmailAddress?.emailAddress;
+
+      if (!userEmail) {
+        throw new Error("User email not found");
+      }
+
+      // Send email with the HTML report
+      const response = await fetch("/api/send-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: userEmail,
+          subject: "Your Interview Report and Transcript",
+          content: htmlReport,
+        }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage += ` - ${errorData.message}`;
+        } catch (e) {
+          console.error("Could not parse error response:", e);
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      console.log(
+        "Report and transcript generated and sent to user:",
+        data.message
+      );
+    } catch (error) {
+      console.error("Error generating report:", error);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
+  const handleEndInterview = async () => {
+    stopRecording();
+    await generateReport();
+  };
+
+  // Update the persona state change handler to also set the voice
+  const handlePersonaChange = useCallback((value) => {
+    const newVoice = value === "male" ? "aura-arcas-en" : "aura-asteria-en";
+    setPersona(value);
+    selectedVoiceRef.current = newVoice;
+    console.log("Voice changed to:", newVoice);
+  }, []);
+
+  // Speech to Text
+  const startRecording = useCallback(() => {
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then((stream) => {
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+
+        const socket = new WebSocket("wss://api.deepgram.com/v1/listen", [
+          "token",
+          process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY,
+        ]);
+        socketRef.current = socket;
+
+        socket.onopen = () => {
+          console.log("WebSocket connection opened");
+          intervalRef.current = setInterval(() => {
+            setProgress((prevProgress) => {
+              if (prevProgress >= 100) {
+                clearInterval(intervalRef.current);
+                return 100;
+              }
+              return prevProgress + 100 / (45 * 60);
+            });
+          }, 1000);
+          mediaRecorder.addEventListener("dataavailable", (event) => {
+            socket.send(event.data);
+          });
+          mediaRecorder.start(250);
+        };
+
+        socket.onmessage = async (message) => {
+          const received = JSON.parse(message.data);
+          const transcript = received.channel.alternatives[0].transcript;
+          if (transcript.trim()) {
+            await processTranscript(transcript);
+          }
+        };
+
+        setIsRecording(true);
+      })
+      .catch((err) => console.error("Error accessing microphone:", err));
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+    }
+    if (socketRef.current) {
+      socketRef.current.close();
+    }
+    setIsRecording(false);
+    setProgress(0);
+    // Clear interval if it's set
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  // Text to Text (LLM)
+  const getLlamaResponse = async (transcribedText) => {
+    try {
+      const updatedHistory = [
+        ...conversationHistoryRef.current,
+        { role: "user", content: transcribedText },
+      ];
+      conversationHistoryRef.current = updatedHistory; // Update the ref
+
+      const completion = await groq.chat.completions.create({
+        messages: [
+          {
+            role: "system",
+            content: `
+              You are a hiring manager with a ${persona} name conducting a job interview with an applicant for the position of ${jobDescriptionRef.current}.
+              Make up a name for your company that would make sense to be hiring someone for the job description.
+
+              Instructions:
+              0. Provide context about your company, and asking the applicant if they have experience relevant to that context.
+              1. Keep your remarks brief and to the point, use no more than 2 sentences.
+              2. Ask no more than one question per response.
+              3. Do not greet the user more than once.
               4. Avoid lengthy introductions or explanations.
               5. If you need more information, ask a single, specific follow-up question.
               6. Always refer to the correct job title in your responses.
@@ -212,185 +326,134 @@ export default function MockInterviewDashboard() {
           ...updatedHistory,
         ],
         model: "llama3-8b-8192",
-        max_tokens: 150,
+        max_tokens: 75,
+        temperature: 0.3,
       });
 
-      console.log("Groq API response:", completion);
-
-      if (!completion.choices || completion.choices.length === 0) {
-        throw new Error("No choices returned from Groq API");
-      }
-
       const responseContent = completion.choices[0]?.message?.content;
-      if (!responseContent) {
-        throw new Error("No content in Groq API response");
-      }
 
-      setConversationHistory([
-        ...updatedHistory,
+      // Update the ref again with the AI's response
+      conversationHistoryRef.current = [
+        ...conversationHistoryRef.current,
         { role: "assistant", content: responseContent },
-      ]);
+      ];
 
       console.log("AI response:", responseContent);
       return responseContent;
     } catch (error) {
       console.error("Error in getLlamaResponse:", error);
-      return "I'm sorry, there was an error processing your response. Please check the console for more details.";
+      return "I'm sorry, there was an error processing your response.";
     }
   };
-  // End Generating LLM response to applicant with Groq and Llama
 
-  const startInterview = () => {
-    console.log("Resume Text:", parsedResumeText);
-    console.log("Job Description Text:", currentJobDescription);
-    setInterviewStarted(true);
-    startRecording();
-    intervalRef.current = setInterval(() => {
-      setProgress((prevProgress) => {
-        if (prevProgress >= 100) {
-          clearInterval(intervalRef.current);
-          return 100;
+  // Text to Speech
+  const convertTextToSpeech = async (text) => {
+    try {
+      const currentVoice = selectedVoiceRef.current;
+      const response = await axios.post(
+        `https://api.deepgram.com/v1/speak?model=${currentVoice}`,
+        { text },
+        {
+          headers: {
+            Authorization: `Token ${process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          responseType: "arraybuffer",
+          params: {
+            format: "mp3", // Use a more efficient format
+            quality: "low", // Lower quality for faster processing
+          },
         }
-        return prevProgress + 100 / (45 * 60);
-      });
-    }, 1000);
-    // getLlamaResponse("Hello, I'm here for the interview.");
-  };
+      );
 
-  const endInterview = () => {
-    setInterviewStarted(false);
-    setProgress(0);
-    stopRecording();
-    // Stop recording if mediaRecorder is defined
-    if (mediaRecorder) {
-      mediaRecorder.stop();
-      setMediaRecorder(null); // Clear the recorder reference
-    }
-
-    // Clear interval if it's set
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-
-    // Close WebSocket connection if it's open
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.close();
-      socketRef.current = null; // Clear the socket reference
+      const audioBlob = new Blob([response.data], { type: "audio/mp3" });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      console.log("Audio URL created:", audioUrl);
+      return audioUrl;
+    } catch (error) {
+      console.error("Error converting text to speech:", error);
+      return null;
     }
   };
 
-  // Begin Handle Transcription
-  const processTranscript = useCallback(
-    async (transcript) => {
-      console.log("Processing transcript:", transcript);
-      console.log(
-        "Current Job Description before getLlamaResponse:",
-        currentJobDescription
-      );
-      console.log(
-        "Parsed Resume Text before getLlamaResponse:",
-        parsedResumeText
-      );
+  // Process transcript and generate response
+  const processTranscript = async (transcript) => {
+    console.log("Processing transcript:", transcript);
 
-      setTranscription((prev) => prev + "\nUser: " + transcript);
-      const aiResponse = await getLlamaResponse(transcript);
-      setTranscription((prev) => prev + "\nAI: " + aiResponse);
-      setAiResponses((prev) => [...prev, aiResponse]);
-      setCurrentTranscript("");
+    // Capitalize the first letter of the user's sentence
+    const capitalizedTranscript =
+      transcript.charAt(0).toUpperCase() + transcript.slice(1);
+    // Add the user's transcribed text with "Me:" prefix
+    setTranscription((prev) =>
+      prev
+        ? `${prev}\nMe: ${capitalizedTranscript}`
+        : `Me: ${capitalizedTranscript}`
+    );
 
-      // Convert AI response to speech
-      const audioUrl = await convertTextToSpeech(aiResponse);
-      if (audioUrl) {
-        setAudioQueue((prevQueue) => [...prevQueue, audioUrl]);
+    const aiResponse = await getLlamaResponse(transcript);
+
+    // Add the AI's response with "Interviewer:" prefix
+    setTranscription((prev) => `${prev}\nInterviewer: ${aiResponse}`);
+
+    const audioUrl = await convertTextToSpeech(aiResponse);
+    if (audioUrl) {
+      console.log("Adding to audio queue:", audioUrl);
+      setAudioQueue((prevQueue) => [...prevQueue, audioUrl]);
+    }
+  };
+
+  // Audio playback
+  useEffect(() => {
+    if (
+      audioQueue.length > 0 &&
+      !isPlaying &&
+      audioRef.current &&
+      isAudioInitialized
+    ) {
+      console.log("Playing next audio in queue");
+      setIsPlaying(true);
+      audioRef.current.src = audioQueue[0];
+      audioRef.current
+        .play()
+        .catch((error) => console.error("Error playing audio:", error));
+    }
+  }, [audioQueue, isPlaying, isAudioInitialized]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.onended = () => {
+        console.log("Audio playback ended");
+        setIsPlaying(false);
+        setAudioQueue((prevQueue) => prevQueue.slice(1));
+      };
+    }
+  }, []);
+
+  // Add this new effect to initialize audio
+  useEffect(() => {
+    const initializeAudio = () => {
+      audioRef.current = new Audio();
+      audioRef.current.onended = () => {
+        setIsPlaying(false);
+        setAudioQueue((prevQueue) => prevQueue.slice(1));
+      };
+      setIsAudioInitialized(true);
+    };
+
+    // Initialize audio on first user interaction
+    const handleInteraction = () => {
+      if (!isAudioInitialized) {
+        initializeAudio();
+        document.removeEventListener("click", handleInteraction);
       }
-    },
-    [currentJobDescription, parsedResumeText]
-  );
+    };
 
-  useEffect(() => {
-    debouncedGetResponse.current = debounce(processTranscript, 2000);
-    return () => debouncedGetResponse.current.cancel();
-  }, [processTranscript]);
+    document.addEventListener("click", handleInteraction);
 
-  useEffect(() => {
-    if (isRecording && mediaRecorder) {
-      console.log("Setting up WebSocket connection");
-      const socket = new WebSocket("wss://api.deepgram.com/v1/listen", [
-        "token",
-        process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY,
-      ]);
-      socketRef.current = socket;
-
-      socket.onopen = () => {
-        console.log("WebSocket connection opened");
-        mediaRecorder.addEventListener("dataavailable", (event) => {
-          socket.send(event.data);
-        });
-        mediaRecorder.start(250);
-      };
-
-      socket.onmessage = async (message) => {
-        try {
-          const received = JSON.parse(message.data);
-          const transcript = received.channel.alternatives[0].transcript;
-          if (transcript.trim()) {
-            console.log("Received transcript:", transcript);
-            setCurrentTranscript((prev) => prev + " " + transcript);
-            debouncedGetResponse.current(currentTranscript + " " + transcript);
-          }
-        } catch (error) {
-          console.error("Error processing WebSocket message:", error);
-        }
-      };
-
-      socket.onclose = () => {
-        setIsRecording(false);
-        mediaRecorder.stop();
-      };
-
-      return () => {
-        socket.close();
-        socketRef.current = null;
-      };
-    }
-  }, [isRecording, mediaRecorder]);
-
-  const startRecording = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-    setMediaRecorder(recorder);
-    setIsRecording(true);
-  };
-
-  const stopRecording = () => {
-    setIsRecording(false);
-  };
-  // End transcription Handle
-
-  const handleFileChange = async (event, fileType) => {
-    const selectedFile = event.target.files[0];
-    if (fileType === "resume") {
-      setResume(selectedFile);
-      // Parse the PDF resume when it's selected
-      const parsedText = await parsePdf(selectedFile);
-      setParsedResumeText(parsedText);
-      setResumeText(parsedText);
-      console.log("Resume set to: ", parsedText);
-    } else if (fileType === "jobDescription") {
-      setJobDescription(selectedFile);
-      const parsedText = await parsePdf(selectedFile);
-      setParsedJobDescriptionText(parsedText);
-      setJobDescriptionText(parsedText);
-      setCurrentJobDescription(parsedText);
-      console.log("Job Description set to: ", parsedText);
-    }
-  };
-
-  // For Processing Submission of Resume and Job Description
-  // const handleSubmit = async () => {
-  //
-  // };
+    return () => {
+      document.removeEventListener("click", handleInteraction);
+    };
+  }, []);
 
   // Function to parse PDFs
   const parsePdf = async (file) => {
@@ -416,28 +479,36 @@ export default function MockInterviewDashboard() {
 
   // Function to handle job description text input
   const handleJobDescriptionTextChange = (e) => {
-    const newText = e.target.value;
-    setJobDescriptionText(newText);
-    setCurrentJobDescription(newText);
-    console.log("handleJobDescription updated:", newText);
+    const newValue = e.target.value;
+    setJobDescription(newValue);
+    jobDescriptionRef.current = newValue;
   };
 
-  // Log state changes
-  useEffect(() => {
-    console.log(
-      "Current Job Description state updated:",
-      currentJobDescription
-    );
-  }, [currentJobDescription]);
-
-  useEffect(() => {
-    console.log("Parsed Resume Text state updated:", parsedResumeText);
-  }, [parsedResumeText]);
+  // Handle file changes
+  const handleFileChange = async (e, type) => {
+    const file = e.target.files[0];
+    if (file && file.type === "application/pdf") {
+      try {
+        const text = await parsePdf(file);
+        if (type === "resume") {
+          setResumeText(text); // Keep this for UI updates
+          resumeTextRef.current = text;
+          console.log("Resume text parsed:", text);
+        } else if (type === "jobDescription") {
+          setJobDescription(text);
+          jobDescriptionRef.current = text;
+          console.log("Job description parsed:", text);
+        }
+      } catch (error) {
+        console.error("Error parsing PDF:", error);
+      }
+    }
+  };
 
   return (
     <div className="flex-1 flex">
       <div className="w-2/3 p-4 flex flex-col">
-        <VideoInterface />
+        <VideoInterface persona={persona} />
 
         <div className="bg-white rounded-lg p-4 shadow-md">
           <div className="flex justify-between items-center mb-2">
@@ -475,7 +546,7 @@ export default function MockInterviewDashboard() {
                 onChange={(e) => handleFileChange(e, "resume")}
                 className="border-gray-300"
               />
-              {resume && (
+              {resumeText && (
                 <p className="text-sm text-gray-600 mt-1">
                   Selected file: {resume.name}
                 </p>
@@ -501,7 +572,7 @@ export default function MockInterviewDashboard() {
                 <TabsContent value="text">
                   <Textarea
                     placeholder="Enter job description here..."
-                    value={jobDescriptionText}
+                    value={jobDescription}
                     onChange={handleJobDescriptionTextChange}
                     className="border-gray-300 focus-visible:ring-transparent"
                   />
@@ -521,11 +592,11 @@ export default function MockInterviewDashboard() {
                   )}
                 </TabsContent>
                 {/* <Button
-                  className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800"
-                  // onClick={}
-                >
-                  Submit
-                </Button> */}
+                className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800"
+                // onClick={}
+              >
+                Submit
+              </Button> */}
               </Tabs>
             </div>
           </div>
@@ -569,19 +640,19 @@ export default function MockInterviewDashboard() {
         <div className="mt-auto space-y-2">
           <Button
             className="w-full bg-teal-500 hover:bg-teal-600 text-white transition-colors duration-200 ease-in-out transform hover:scale-100 active:scale-95 cursor-pointer"
-            onClick={startInterview}
-            disabled={
-              !parsedResumeText || !currentJobDescription || interviewStarted
-            }
+            onClick={startRecording}
+            // disabled={
+            //   !parsedResumeText || !currentJobDescription || interviewStarted
+            // }
           >
-            {interviewStarted ? "Interview in Progress" : "Start Interview"}
+            {isRecording ? "Interview in Progress" : "Start Interview"}
           </Button>
           <Button
             className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 transition-colors duration-200 ease-in-out transform hover:scale-100 active:scale-95 cursor-pointer"
-            onClick={endInterview}
-            disabled={!interviewStarted}
+            onClick={handleEndInterview}
+            disabled={!isRecording || isGeneratingReport}
           >
-            End Interview
+            {isGeneratingReport ? "Generating Report..." : "End Interview"}
           </Button>
         </div>
       </div>

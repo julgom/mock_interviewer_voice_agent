@@ -5,11 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, CameraOff, Maximize2, Minimize2 } from "lucide-react";
 
-export function VideoInterface() {
+export function VideoInterface({ persona }) {
   const [stream, setStream] = useState(null);
   const [cameraOn, setCameraOn] = useState(false);
   const [mainDisplay, setMainDisplay] = useState("ai");
   const videoRef = useRef(null);
+
+  const interviewerImage =
+    persona === "female"
+      ? "images/interviewer_image_female.jpg"
+      : "images/interviewer_image_male.jpg";
 
   useEffect(() => {
     if (cameraOn) {
@@ -42,9 +47,9 @@ export function VideoInterface() {
     <div className="flex flex-col items-center justify-center h-full bg-transparent text-white">
       <div className="relative w-full max-w-4xl flex-grow aspect-video rounded-lg overflow-hidden">
         {mainDisplay === "ai" ? (
-          <div className="w-full h-full flex items-center justify-center bg-teal-500">
+          <div className="w-full h-full flex items-center justify-center bg-interviewer-blue">
             <Avatar className="w-64 h-64">
-              <AvatarImage src="" alt="AI Avatar" />
+              <AvatarImage src={interviewerImage} alt="AI Avatar" />
               <AvatarFallback className="text-black">AI</AvatarFallback>
             </Avatar>
           </div>
@@ -76,9 +81,9 @@ export function VideoInterface() {
               </div>
             )
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-teal-500">
+            <div className="w-full h-full flex items-center justify-center bg-interviewer-blue">
               <Avatar className="w-16 h-16">
-                <AvatarImage src="" alt="AI Avatar" />
+                <AvatarImage src={interviewerImage} alt="AI Avatar" />
                 <AvatarFallback className="text-black">AI</AvatarFallback>
               </Avatar>
             </div>
