@@ -19,8 +19,6 @@ import { doc, writeBatch } from "firebase/firestore";
 import axios from "axios";
 // Groq and Llama
 import Groq from "groq-sdk";
-// For PDF parsing
-import * as pdfjsLib from "pdfjs-dist/webpack";
 
 export default function MockInterviewDashboard() {
   const [isRecording, setIsRecording] = useState(false);
@@ -41,6 +39,7 @@ export default function MockInterviewDashboard() {
   const jobDescriptionRef = useRef("");
   const [jobDescription, setJobDescription] = useState("");
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [activeTab, setActiveTab] = useState("text");
 
   const groq = new Groq({
     apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
@@ -49,6 +48,7 @@ export default function MockInterviewDashboard() {
 
   // User Authentification
   const { isLoaded, isSignedIn, user } = useUser();
+
   useEffect(() => {
     const initializeUser = async () => {
       console.log("useUser Output:", { isLoaded, isSignedIn, user });
@@ -303,6 +303,7 @@ export default function MockInterviewDashboard() {
       ];
       conversationHistoryRef.current = updatedHistory; // Update the ref
 
+      console.log("Resume Text: ", resumeTextRef.current);
       const completion = await groq.chat.completions.create({
         messages: [
           {
@@ -311,6 +312,7 @@ export default function MockInterviewDashboard() {
               You are a hiring manager with a ${persona} name conducting a job interview with an applicant for the position of ${jobDescriptionRef.current}.
               Make up a name for your company that would make sense to be hiring someone for the job description.
 
+              
               Instructions:
               0. Provide context about your company, and asking the applicant if they have experience relevant to that context.
               1. Keep your remarks brief and to the point, use no more than 2 sentences.
@@ -428,8 +430,9 @@ export default function MockInterviewDashboard() {
       };
     }
   }, []);
+  // End audio playback
 
-  // Add this new effect to initialize audio
+  // Initialize audio
   useEffect(() => {
     const initializeAudio = () => {
       audioRef.current = new Audio();
@@ -454,28 +457,7 @@ export default function MockInterviewDashboard() {
       document.removeEventListener("click", handleInteraction);
     };
   }, []);
-
-  // Function to parse PDFs
-  const parsePdf = async (file) => {
-    return new Promise((resolve) => {
-      const fileReader = new FileReader();
-      fileReader.onload = async (event) => {
-        const typedArray = new Uint8Array(event.target.result);
-        const pdf = await pdfjsLib.getDocument(typedArray).promise;
-        let fullText = "";
-
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items.map((item) => item.str).join(" ");
-          fullText += pageText + "\n";
-        }
-
-        resolve(fullText);
-      };
-      fileReader.readAsArrayBuffer(file);
-    });
-  };
+  // End initialize audio
 
   // Function to handle job description text input
   const handleJobDescriptionTextChange = (e) => {
@@ -484,23 +466,53 @@ export default function MockInterviewDashboard() {
     jobDescriptionRef.current = newValue;
   };
 
-  // Handle file changes
+  // Handle File Changes.
   const handleFileChange = async (e, type) => {
     const file = e.target.files[0];
     if (file && file.type === "application/pdf") {
       try {
-        const text = await parsePdf(file);
-        if (type === "resume") {
-          setResumeText(text); // Keep this for UI updates
-          resumeTextRef.current = text;
-          console.log("Resume text parsed:", text);
-        } else if (type === "jobDescription") {
-          setJobDescription(text);
-          jobDescriptionRef.current = text;
-          console.log("Job description parsed:", text);
+        console.log("File selected:", file.name, "Size:", file.size);
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        console.log("Sending request to /api/parse-pdf");
+        const response = await fetch("/api/parse-pdf", {
+          method: "POST",
+          body: formData,
+        });
+
+        console.log("Response status:", response.status);
+        console.log("Response headers:", Object.fromEntries(response.headers));
+
+        const data = await response.json();
+        console.log("Response data received");
+
+        if (!response.ok) {
+          throw new Error(
+            JSON.stringify({
+              error: data.error,
+              details: data.details,
+              status: response.status,
+            })
+          );
         }
+
+        const fullText = data.fullText || "No text content found";
+        if (type === "resume") {
+          setResumeText(fullText);
+          resumeTextRef.current = fullText;
+          console.log("Resume text updated, length:", fullText.length);
+        } else if (type === "jobDescription") {
+          setJobDescription(fullText);
+          jobDescriptionRef.current = fullText;
+          console.log("Job description updated, length:", fullText.length);
+        }
+
+        console.log("File processed successfully");
       } catch (error) {
-        console.error("Error parsing PDF:", error);
+        console.error("Error in handleFileChange:", error);
+        // Handle error (e.g., show an error message to the user)
       }
     }
   };
@@ -546,15 +558,19 @@ export default function MockInterviewDashboard() {
                 onChange={(e) => handleFileChange(e, "resume")}
                 className="border-gray-300"
               />
-              {resumeText && (
-                <p className="text-sm text-gray-600 mt-1">
-                  Selected file: {resume.name}
-                </p>
-              )}
+              {resumeText && <p className="text-sm text-gray-600 mt-1"></p>}
+              {/* <PDFParser
+                onParsed={(text) => handleParsedPDF(text, "resume")}
+                fileType="resume"
+              /> */}
             </div>
             <div>
               <Label className="text-gray-600">Job Description</Label>
-              <Tabs defaultValue="text" className="w-full space-y-2">
+              <Tabs
+                value={activeTab}
+                onValueChange={setActiveTab}
+                className="w-full space-y-2"
+              >
                 <TabsList className="bg-gray-100">
                   <TabsTrigger
                     value="text"
@@ -585,11 +601,17 @@ export default function MockInterviewDashboard() {
                     onChange={(e) => handleFileChange(e, "jobDescription")}
                     className="border-gray-300"
                   />
-                  {jobDescription && (
-                    <p className="text-sm text-gray-600 mt-1">
-                      Selected file: {jobDescription.name}
-                    </p>
+                  {jobDescription && activeTab === "file" && (
+                    <p className="text-sm text-gray-600 mt-1"></p>
                   )}
+                  {/* {activeTab === "file" && (
+                    <PDFParser
+                      onParsed={(text) =>
+                        handleParsedPDF(text, "jobDescription")
+                      }
+                      fileType="jobDescription"
+                    />
+                  )} */}
                 </TabsContent>
                 {/* <Button
                 className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800"
