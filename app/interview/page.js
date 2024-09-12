@@ -40,6 +40,7 @@ export default function MockInterviewDashboard() {
   const [jobDescription, setJobDescription] = useState("");
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [activeTab, setActiveTab] = useState("text");
+  // Time user speech-to-text time
 
   const groq = new Groq({
     apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
