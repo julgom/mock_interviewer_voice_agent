@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SignedOut } from "@clerk/nextjs";
+import Image from "next/image";
 
 export default function Component() {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function Component() {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center">
+    <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-sky-50 to-white">
       <section className="w-full">
         <div className="container px-4 md:px-6">
           <div className="flex flex-col items-center space-y-4 text-center">
@@ -24,8 +25,18 @@ export default function Component() {
                 <br />
                 Career Development
               </h1>
+              <div className="flex items-center justify-center space-x-2 text-xl">
+                <span className="text-black-600">by</span>{" "}
+                <Image
+                  src="/images/pixona_logo_2.png"
+                  alt="Pixona logo"
+                  width={115}
+                  height={115}
+                  className="inline-block"
+                />
+              </div>
               <p className="mx-auto max-w-[700px] text-gray-500 md:text-xl dark:text-gray-400">
-                Exercise the skills you need to land the job.
+                Practice the skills you need to land the job.
               </p>
             </div>
             <SignedOut>

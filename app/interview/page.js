@@ -40,7 +40,9 @@ export default function MockInterviewDashboard() {
   const [jobDescription, setJobDescription] = useState("");
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [activeTab, setActiveTab] = useState("text");
-  // Time user speech-to-text time
+  //
+  const responseTimeRef = useRef(null);
+  //
 
   const groq = new Groq({
     apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
@@ -85,7 +87,7 @@ export default function MockInterviewDashboard() {
     };
 
     initializeUser();
-  }, [isLoaded, isSignedIn, user]);
+  }, []);
 
   // Generate Report
   const generateReport = async () => {
@@ -93,6 +95,7 @@ export default function MockInterviewDashboard() {
     try {
       // Process the transcript
       const formattedTranscript = conversationHistoryRef.current
+        .slice(1) // Skip the first message, ("Start the Interview")
         .map((msg) => {
           let content = msg.content.trim();
 
@@ -225,6 +228,7 @@ export default function MockInterviewDashboard() {
   const handleEndInterview = async () => {
     stopRecording();
     await generateReport();
+    cleanupAfterInterview();
   };
 
   // Update the persona state change handler to also set the voice
@@ -233,6 +237,16 @@ export default function MockInterviewDashboard() {
     setPersona(value);
     selectedVoiceRef.current = newVoice;
     console.log("Voice changed to:", newVoice);
+  }, []);
+
+  // Function to handle the initial AI greeting
+  const initiateAIGreeting = useCallback(async () => {
+    const greeting = await getLlamaResponse("Start the interview");
+    const audioUrl = await convertTextToSpeech(greeting);
+    if (audioUrl) {
+      setAudioQueue((prevQueue) => [...prevQueue, audioUrl]);
+    }
+    setTranscription(`Interviewer: ${greeting}`);
   }, []);
 
   // Speech to Text
@@ -264,6 +278,9 @@ export default function MockInterviewDashboard() {
             socket.send(event.data);
           });
           mediaRecorder.start(250);
+
+          // Initiate AI greeting when recording starts
+          initiateAIGreeting();
         };
 
         socket.onmessage = async (message) => {
@@ -277,7 +294,7 @@ export default function MockInterviewDashboard() {
         setIsRecording(true);
       })
       .catch((err) => console.error("Error accessing microphone:", err));
-  }, []);
+  }, [initiateAIGreeting]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current) {
@@ -287,12 +304,35 @@ export default function MockInterviewDashboard() {
       socketRef.current.close();
     }
     setIsRecording(false);
-    setProgress(0);
     // Clear interval if it's set
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+  }, []);
+
+  const cleanupAfterInterview = useCallback(() => {
+    // Reset transcription
+    setTranscription("");
+    // Clear conversation history
+    conversationHistoryRef.current = [];
+    // Reset audio queue
+    setAudioQueue([]);
+    // Reset progress
+    setProgress(0);
+    // Reset audio playback
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    setIsPlaying(false);
+
+    // Clear the MediaRecorder reference
+    mediaRecorderRef.current = null;
+    // Clear the WebSocket reference
+    socketRef.current = null;
+
+    console.log("Cleanup completed. Ready for a new interview.");
   }, []);
 
   // Text to Text (LLM)
@@ -310,12 +350,12 @@ export default function MockInterviewDashboard() {
           {
             role: "system",
             content: `
-              You are a hiring manager with a ${persona} name conducting a job interview with an applicant for the position of ${jobDescriptionRef.current}.
-              Make up a name for your company that would make sense to be hiring someone for the job description.
+              You are an AI hiring manager conducting a job interview with an applicant for the position of ${jobDescriptionRef.current}.
+              Make up a plausible sounding name for the company you are representing.
 
               
               Instructions:
-              0. Provide context about your company, and asking the applicant if they have experience relevant to that context.
+              0. Provide context about your company, and asking the applicant if they have experience relevant to what your company does.
               1. Keep your remarks brief and to the point, use no more than 2 sentences.
               2. Ask no more than one question per response.
               3. Do not greet the user more than once.
@@ -431,9 +471,8 @@ export default function MockInterviewDashboard() {
       };
     }
   }, []);
-  // End audio playback
 
-  // Initialize audio
+  // Add this new effect to initialize audio
   useEffect(() => {
     const initializeAudio = () => {
       audioRef.current = new Audio();
@@ -458,7 +497,6 @@ export default function MockInterviewDashboard() {
       document.removeEventListener("click", handleInteraction);
     };
   }, []);
-  // End initialize audio
 
   // Function to handle job description text input
   const handleJobDescriptionTextChange = (e) => {
