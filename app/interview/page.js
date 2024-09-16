@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,9 +41,22 @@ export default function MockInterviewDashboard() {
   const [jobDescription, setJobDescription] = useState("");
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [activeTab, setActiveTab] = useState("text");
+  const [isMuted, setIsMuted] = useState(false);
   //
   const responseTimeRef = useRef(null);
   //
+  const transcriptCollectorRef = useRef({
+    parts: [],
+    reset: function () {
+      this.parts = [];
+    },
+    addPart: function (part) {
+      this.parts.push(part);
+    },
+    getFullTranscript: function () {
+      return this.parts.join(" ");
+    },
+  });
 
   const groq = new Groq({
     apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
@@ -249,6 +263,16 @@ export default function MockInterviewDashboard() {
     setTranscription(`Interviewer: ${greeting}`);
   }, []);
 
+  // Function to toggle whether user is muted or not.
+  const toggleMute = useCallback(() => {
+    setIsMuted((prevMuted) => !prevMuted);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.stream) {
+      mediaRecorderRef.current.stream.getAudioTracks().forEach((track) => {
+        track.enabled = isMuted; // Note: We use the current state here, not the updated state
+      });
+    }
+  }, [isMuted]);
+
   // Speech to Text
   const startRecording = useCallback(() => {
     navigator.mediaDevices
@@ -265,6 +289,7 @@ export default function MockInterviewDashboard() {
 
         socket.onopen = () => {
           console.log("WebSocket connection opened");
+
           intervalRef.current = setInterval(() => {
             setProgress((prevProgress) => {
               if (prevProgress >= 100) {
@@ -274,8 +299,11 @@ export default function MockInterviewDashboard() {
               return prevProgress + 100 / (45 * 60);
             });
           }, 1000);
+
           mediaRecorder.addEventListener("dataavailable", (event) => {
-            socket.send(event.data);
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(event.data);
+            }
           });
           mediaRecorder.start(250);
 
@@ -283,18 +311,28 @@ export default function MockInterviewDashboard() {
           initiateAIGreeting();
         };
 
-        socket.onmessage = async (message) => {
+        socket.onmessage = (message) => {
           const received = JSON.parse(message.data);
           const transcript = received.channel.alternatives[0].transcript;
-          if (transcript.trim()) {
-            await processTranscript(transcript);
+          const isFinal = received.speech_final;
+
+          if (transcript) {
+            transcriptCollectorRef.current.addPart(transcript);
+
+            if (isFinal) {
+              const fullSentence =
+                transcriptCollectorRef.current.getFullTranscript();
+              setTranscription((prev) => `${prev}\nMe: ${fullSentence}`);
+              processTranscript(fullSentence);
+              transcriptCollectorRef.current.reset();
+            }
           }
         };
 
         setIsRecording(true);
       })
       .catch((err) => console.error("Error accessing microphone:", err));
-  }, [initiateAIGreeting]);
+  }, [isMuted, initiateAIGreeting]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current) {
@@ -304,6 +342,7 @@ export default function MockInterviewDashboard() {
       socketRef.current.close();
     }
     setIsRecording(false);
+    transcriptCollectorRef.current.reset();
     // Clear interval if it's set
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -699,6 +738,16 @@ export default function MockInterviewDashboard() {
           </RadioGroup>
         </div>
         <div className="mt-auto space-y-2">
+          <div className="flex items-center justify-between mb-2">
+            <Label htmlFor="mute-switch" className="text-gray-600">
+              Mute Microphone
+            </Label>
+            <Switch
+              id="mute-switch"
+              checked={isMuted}
+              onCheckedChange={toggleMute}
+            />
+          </div>
           <Button
             className="w-full bg-teal-500 hover:bg-teal-600 text-white transition-colors duration-200 ease-in-out transform hover:scale-100 active:scale-95 cursor-pointer"
             onClick={startRecording}

@@ -15,7 +15,7 @@ export default function Component() {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-sky-50 to-white">
+    <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-sky-100 via-sky-50 to-white">
       <section className="w-full">
         <div className="container px-4 md:px-6">
           <div className="flex flex-col items-center space-y-4 text-center">
