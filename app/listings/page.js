@@ -15,7 +15,7 @@ import {
   FileText,
   User,
   LogOut,
-  Heart,
+  Bookmark,
   X,
   MapPin,
   Clock,
@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import JobModal from "@/components/custom/JobModal";
+import FilterModal from "@/components/custom/FilterModal";
 
 // Mock data for job postings
 const jobPostings = [
@@ -428,24 +429,26 @@ const jobPostings = [
 ];
 
 export default function JobSearchPage() {
-  const [selectedTags, setSelectedTags] = useState([]);
-  const [favorites, setFavorites] = useState([]);
+  const [saved, setSaved] = useState([]);
+  const [applied, setApplied] = useState([]);
   const [blocked, setBlocked] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [filters, setFilters] = useState({});
 
-  const toggleTag = (tag) => {
-    setSelectedTags((prevTags) =>
-      prevTags.includes(tag)
-        ? prevTags.filter((t) => t !== tag)
-        : [...prevTags, tag]
+  const toggleSaved = (id) => {
+    setSaved((prevSaved) =>
+      prevSaved.includes(id)
+        ? prevSaved.filter((savedId) => savedId !== id)
+        : [...prevSaved, id]
     );
   };
 
-  const toggleFavorite = (id) => {
-    setFavorites((prevFavorites) =>
-      prevFavorites.includes(id)
-        ? prevFavorites.filter((favId) => favId !== id)
-        : [...prevFavorites, id]
+  const toggleApplied = (id) => {
+    setApplied((prevApplied) =>
+      prevApplied.includes(id)
+        ? prevApplied.filter((appliedId) => appliedId !== id)
+        : [...prevApplied, id]
     );
   };
 
@@ -457,15 +460,21 @@ export default function JobSearchPage() {
     );
   };
 
+  const handleApplyFilters = (newFilters) => {
+    setFilters(newFilters);
+    // You would typically update your job listings based on these filters
+    console.log("Applying filters:", newFilters);
+  };
+
   const filteredJobs = jobPostings
     .filter((job) => !blocked.includes(job.id))
-    .filter(
-      (job) =>
-        selectedTags.length === 0 ||
-        job.tags.some((tag) => selectedTags.includes(tag))
-    );
-
-  const allTags = Array.from(new Set(jobPostings.flatMap((job) => job.tags)));
+    .filter((job) => {
+      if (activeCategory === "all") return true;
+      if (activeCategory === "saved") return saved.includes(job.id);
+      if (activeCategory === "applied") return applied.includes(job.id);
+      return true;
+    });
+  // Add more filter logic here based on the `filters` state
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -501,21 +510,32 @@ export default function JobSearchPage() {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 p-6">
-        <h2 className="text-2xl font-semibold mb-4">Job Listings</h2>
-
-        {/* Filter Buttons */}
-        <div className="mb-4 flex flex-wrap gap-2">
-          {allTags.map((tag) => (
+      <main className="flex-1 p-6 overflow-hidden">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center space-x-4">
+            <h2 className="text-2xl font-semibold">Job Listings</h2>
+            <FilterModal onApplyFilters={handleApplyFilters} />
+          </div>
+          <div className="space-x-2">
             <Button
-              key={tag}
-              variant={selectedTags.includes(tag) ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleTag(tag)}
+              variant={activeCategory === "all" ? "default" : "outline"}
+              onClick={() => setActiveCategory("all")}
             >
-              {tag}
+              All Jobs
             </Button>
-          ))}
+            <Button
+              variant={activeCategory === "saved" ? "default" : "outline"}
+              onClick={() => setActiveCategory("saved")}
+            >
+              Saved
+            </Button>
+            <Button
+              variant={activeCategory === "applied" ? "default" : "outline"}
+              onClick={() => setActiveCategory("applied")}
+            >
+              Applied
+            </Button>
+          </div>
         </div>
 
         <ScrollArea className="h-[calc(100vh-180px)]">
@@ -548,22 +568,23 @@ export default function JobSearchPage() {
                       className="rounded-md"
                     />
                     <div className="flex-1">
-                      <div className="text-sm text-muted-foreground">
-                        {job.timePosted}
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          {job.company}
+                        </span>
+                        <span>•</span>
+                        <span>{job.timePosted}</span>
                       </div>
                       <CardTitle className="text-xl">{job.title}</CardTitle>
-                      <div className="flex items-center mt-1 space-x-2">
-                        <div className="text-sm font-medium">{job.company}</div>
-                        <div className="flex flex-wrap gap-1">
-                          {job.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-700"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {job.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-700"
+                          >
+                            {tag}
+                          </span>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -609,20 +630,27 @@ export default function JobSearchPage() {
                       size="icon"
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleFavorite(job.id);
+                        toggleSaved(job.id);
                       }}
                     >
-                      <Heart
+                      <Bookmark
                         className={`h-4 w-4 ${
-                          favorites.includes(job.id)
-                            ? "fill-red-500 text-red-500"
+                          saved.includes(job.id)
+                            ? "fill-blue-500 text-blue-500"
                             : ""
                         }`}
                       />
-                      <span className="sr-only">Favorite</span>
+                      <span className="sr-only">Save</span>
                     </Button>
                   </div>
-                  <Button>Apply</Button>
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleApplied(job.id);
+                    }}
+                  >
+                    {applied.includes(job.id) ? "Applied" : "Apply"}
+                  </Button>
                 </CardFooter>
               </Card>
             ))}
