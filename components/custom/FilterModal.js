@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -108,14 +110,13 @@ export default function FilterModal({ onApplyFilters }) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Job Filters</DialogTitle>
+          <DialogTitle>Filters</DialogTitle>
         </DialogHeader>
         <ScrollArea className="h-[60vh] pr-4">
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <h3 className="font-medium">Basic Job Criteria</h3>
               <div>
-                <Label htmlFor="jobTitles">Job Title(s)</Label>
+                <Label htmlFor="jobTitles">Job Title</Label>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {jobTitles.map((title, index) => (
                     <div
@@ -149,7 +150,7 @@ export default function FilterModal({ onApplyFilters }) {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Job Type</Label>
+              <Label>Employment Type</Label>
               <div className="flex flex-wrap gap-4">
                 {["Full-time", "Contract", "Part-time", "Internship"].map(
                   (type) => (
@@ -172,7 +173,7 @@ export default function FilterModal({ onApplyFilters }) {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Work Type</Label>
+              <Label>Work Location</Label>
               <div className="flex flex-wrap gap-4">
                 {["Onsite", "Remote", "Hybrid"].map((type) => (
                   <div key={type} className="flex items-center space-x-2">

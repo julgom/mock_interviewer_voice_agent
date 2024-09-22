@@ -22,6 +22,8 @@ import {
   Users,
   DollarSign,
   Percent,
+  Bell,
+  Settings,
 } from "lucide-react";
 import Image from "next/image";
 import JobModal from "@/components/custom/JobModal";
@@ -45,7 +47,7 @@ const jobPostings = [
     skillMatch: 46,
     industryExpMatch: 73,
     tags: ["Artificial Intelligence (AI)", "Autonomous Vehicles"],
-    logo: "/placeholder.svg",
+    logo: "/images/mock_logo_1.jpg",
     description:
       "Waabi is an artificial intelligence company that commercializes driverless trucks. The role involves collaborating with a team to develop tools and frameworks for safe self-driving technology, leveraging an AI-first approach.",
     responsibilities: [
@@ -136,7 +138,7 @@ const jobPostings = [
     skillMatch: 88,
     industryExpMatch: 85,
     tags: ["Full Stack", "JavaScript", "React", "Node.js"],
-    logo: "/placeholder.svg",
+    logo: "/images/mock_logo_2.jpg",
     description:
       "TechNova is seeking a talented Full Stack Developer to join our innovative team. You'll be working on cutting-edge web applications, collaborating with designers and back-end specialists to deliver seamless user experiences.",
     responsibilities: [
@@ -215,7 +217,7 @@ const jobPostings = [
     skillMatch: 85,
     industryExpMatch: 90,
     tags: ["Machine Learning", "AI", "Python", "Big Data"],
-    logo: "/placeholder.svg",
+    logo: "/images/mock_logo_3.jpg",
     description:
       "DataMind AI is looking for an experienced Data Scientist to join our team. You'll be working on cutting-edge AI and machine learning projects, developing models that drive business decisions and product innovations.",
     responsibilities: [
@@ -288,7 +290,7 @@ const jobPostings = [
     skillMatch: 92,
     industryExpMatch: 80,
     tags: ["UX Design", "UI Design", "Figma", "User Research"],
-    logo: "/placeholder.svg",
+    logo: "/images/mock_logo_4.jpg",
     description:
       "DesignFusion is seeking a talented UX/UI Designer to create amazing user experiences. You'll be working on a variety of projects, from web applications to mobile apps, ensuring that the user interface is attractive, user-friendly, and aligned with our clients' brand identities.",
     responsibilities: [
@@ -363,7 +365,7 @@ const jobPostings = [
     skillMatch: 87,
     industryExpMatch: 82,
     tags: ["DevOps", "Cloud Computing", "Kubernetes", "CI/CD"],
-    logo: "/placeholder.svg",
+    logo: "/images/mock_logo_5.jpg",
     description:
       "CloudScale Solutions is looking for an experienced DevOps Engineer to help us build and maintain our cloud infrastructure. You'll be working on cutting-edge cloud technologies, implementing CI/CD pipelines, and ensuring the reliability and scalability of our systems.",
     responsibilities: [
@@ -481,7 +483,7 @@ export default function JobSearchPage() {
       {/* Left Sidebar */}
       <div className="w-64 bg-white shadow-md">
         <div className="flex flex-col h-full">
-          <div className="p-4">
+          {/* <div className="p-4">
             <h1 className="text-2xl font-bold">JobRight</h1>
           </div>
           <nav className="flex-1">
@@ -505,7 +507,7 @@ export default function JobSearchPage() {
           >
             <LogOut className="mr-2 h-4 w-4" />
             Logout
-          </Button>
+          </Button> */}
         </div>
       </div>
 
@@ -576,16 +578,6 @@ export default function JobSearchPage() {
                         <span>{job.timePosted}</span>
                       </div>
                       <CardTitle className="text-xl">{job.title}</CardTitle>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {job.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-700"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
                     </div>
                   </div>
                 </CardHeader>
@@ -621,10 +613,14 @@ export default function JobSearchPage() {
                     </div>
                   </div>
                 </CardContent>
-                <CardFooter className="flex justify-between items-center">
+                <CardFooter className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <Users className="h-4 w-4" />
-                    <span className="text-sm">{job.applicants} applicants</span>
+                    <div className="flex items-center space-x-1 whitespace-nowrap">
+                      <Users className="h-4 w-4" />
+                      <span className="text-sm">
+                        {job.applicants} applicants
+                      </span>
+                    </div>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -643,6 +639,16 @@ export default function JobSearchPage() {
                       <span className="sr-only">Save</span>
                     </Button>
                   </div>
+                  <div className="flex-1 flex items-center space-x-2 mx-2 overflow-x-auto">
+                    {job.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-700 whitespace-nowrap"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                   <Button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -657,6 +663,25 @@ export default function JobSearchPage() {
           </div>
         </ScrollArea>
       </main>
+
+      {/* Right Sidebar */}
+      <div className="w-64 bg-white shadow-md">
+        <div className="flex flex-col h-full">
+          {/* <div className="p-4">
+            <h2 className="text-xl font-semibold">Notifications</h2>
+          </div>
+          <nav className="flex-1">
+            <Button variant="ghost" className="w-full justify-start" size="lg">
+              <Bell className="mr-2 h-4 w-4" />
+              Alerts
+            </Button>
+            <Button variant="ghost" className="w-full justify-start" size="lg">
+              <Settings className="mr-2 h-4 w-4" />
+              Preferences
+            </Button>
+          </nav> */}
+        </div>
+      </div>
 
       <JobModal
         job={selectedJob}

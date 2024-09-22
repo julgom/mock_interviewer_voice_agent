@@ -647,13 +647,13 @@ export default function MockInterviewDashboard() {
                 <TabsList className="bg-gray-100">
                   <TabsTrigger
                     value="text"
-                    className="data-[state=active]:bg-white data-[state=active]:text-teal-500"
+                    className="data-[state=active]:bg-white data-[state=active]:text-teal-600"
                   >
                     Text Input
                   </TabsTrigger>
                   <TabsTrigger
                     value="file"
-                    className="data-[state=active]:bg-white data-[state=active]:text-teal-500"
+                    className="data-[state=active]:bg-white data-[state=active]:text-teal-600"
                   >
                     File Upload
                   </TabsTrigger>
@@ -714,7 +714,7 @@ export default function MockInterviewDashboard() {
               <RadioGroupItem
                 value="female"
                 id="female"
-                className="border-gray-400 text-teal-500"
+                className="border-gray-400 text-teal-600"
               />
               <Label htmlFor="female" className="text-gray-600">
                 Female Voice
@@ -724,7 +724,7 @@ export default function MockInterviewDashboard() {
               <RadioGroupItem
                 value="male"
                 id="male"
-                className="border-gray-400 text-teal-500"
+                className="border-gray-400 text-teal-600"
               />
               <Label htmlFor="male" className="text-gray-600">
                 Male Voice
@@ -744,7 +744,7 @@ export default function MockInterviewDashboard() {
             />
           </div>
           <Button
-            className="w-full bg-teal-500 hover:bg-teal-600 text-white transition-colors duration-200 ease-in-out transform hover:scale-100 active:scale-95 cursor-pointer"
+            className="w-full bg-teal-600 hover:bg-teal-700 text-white transition-colors duration-200 ease-in-out transform hover:scale-100 active:scale-95 cursor-pointer"
             onClick={startRecording}
             // disabled={
             //   !parsedResumeText || !currentJobDescription || interviewStarted
