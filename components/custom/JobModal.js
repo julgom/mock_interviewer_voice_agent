@@ -61,19 +61,15 @@ export default function JobModal({ job, isOpen, onClose }) {
                   height={64}
                   className="rounded-md"
                 />
-                <div className="flex-grow">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">
-                        {job.company} • {job.timePosted}
-                      </p>
-                      <h3 className="text-2xl font-bold">{job.title}</h3>
-                    </div>
+                <div className="flex-grow flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      {job.company} • {job.timePosted}
+                    </p>
+                    <h3 className="text-2xl font-bold">{job.title}</h3>
+                    <p className="text-sm">{job.location}</p>
                   </div>
-                  <div className="flex items-center gap-4 mt-2">
-                    <p>{job.location}</p>
-                    <Button>Apply</Button>
-                  </div>
+                  <Button>Apply</Button>
                 </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

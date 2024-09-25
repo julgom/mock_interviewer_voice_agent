@@ -21,7 +21,7 @@ import {
   Clock,
   Users,
   DollarSign,
-  Percent,
+  Calendar,
   Bell,
   Settings,
 } from "lucide-react";
@@ -43,11 +43,17 @@ const jobPostings = [
     applicants: 45,
     timePosted: "2 hours ago",
     matchRating: 83,
+    yearsExperience: "1-3",
     expLevelMatch: 100,
     skillMatch: 46,
     industryExpMatch: 73,
     tags: ["Artificial Intelligence (AI)", "Autonomous Vehicles"],
     logo: "/images/mock_logo_1.jpg",
+    matchBreakdown: {
+      experienceLevel: 100,
+      skills: 64,
+      industryExperience: 42,
+    },
     description:
       "Waabi is an artificial intelligence company that commercializes driverless trucks. The role involves collaborating with a team to develop tools and frameworks for safe self-driving technology, leveraging an AI-first approach.",
     responsibilities: [
@@ -134,11 +140,17 @@ const jobPostings = [
     applicants: 78,
     timePosted: "1 day ago",
     matchRating: 91,
+    yearsExperience: "5+",
     expLevelMatch: 95,
     skillMatch: 88,
     industryExpMatch: 85,
     tags: ["Full Stack", "JavaScript", "React", "Node.js"],
     logo: "/images/mock_logo_2.jpg",
+    matchBreakdown: {
+      experienceLevel: 95,
+      skills: 88,
+      industryExperience: 90,
+    },
     description:
       "TechNova is seeking a talented Full Stack Developer to join our innovative team. You'll be working on cutting-edge web applications, collaborating with designers and back-end specialists to deliver seamless user experiences.",
     responsibilities: [
@@ -213,11 +225,17 @@ const jobPostings = [
     applicants: 62,
     timePosted: "3 days ago",
     matchRating: 88,
+    yearsExperience: "3-5",
     expLevelMatch: 92,
     skillMatch: 85,
     industryExpMatch: 90,
     tags: ["Machine Learning", "AI", "Python", "Big Data"],
     logo: "/images/mock_logo_3.jpg",
+    matchBreakdown: {
+      experienceLevel: 85,
+      skills: 72,
+      industryExperience: 68,
+    },
     description:
       "DataMind AI is looking for an experienced Data Scientist to join our team. You'll be working on cutting-edge AI and machine learning projects, developing models that drive business decisions and product innovations.",
     responsibilities: [
@@ -286,11 +304,17 @@ const jobPostings = [
     applicants: 55,
     timePosted: "5 days ago",
     matchRating: 86,
+    yearsExperience: "0-1",
     expLevelMatch: 88,
     skillMatch: 92,
     industryExpMatch: 80,
     tags: ["UX Design", "UI Design", "Figma", "User Research"],
     logo: "/images/mock_logo_4.jpg",
+    matchBreakdown: {
+      experienceLevel: 66,
+      skills: 81,
+      industryExperience: 90,
+    },
     description:
       "DesignFusion is seeking a talented UX/UI Designer to create amazing user experiences. You'll be working on a variety of projects, from web applications to mobile apps, ensuring that the user interface is attractive, user-friendly, and aligned with our clients' brand identities.",
     responsibilities: [
@@ -361,11 +385,17 @@ const jobPostings = [
     applicants: 40,
     timePosted: "1 week ago",
     matchRating: 89,
+    yearsExperience: "2+",
     expLevelMatch: 95,
     skillMatch: 87,
     industryExpMatch: 82,
     tags: ["DevOps", "Cloud Computing", "Kubernetes", "CI/CD"],
     logo: "/images/mock_logo_5.jpg",
+    matchBreakdown: {
+      experienceLevel: 77,
+      skills: 73,
+      industryExperience: 81,
+    },
     description:
       "CloudScale Solutions is looking for an experienced DevOps Engineer to help us build and maintain our cloud infrastructure. You'll be working on cutting-edge cloud technologies, implementing CI/CD pipelines, and ensuring the reliability and scalability of our systems.",
     responsibilities: [
@@ -437,6 +467,7 @@ export default function JobSearchPage() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [activeCategory, setActiveCategory] = useState("all");
   const [filters, setFilters] = useState({});
+  const [hoveredJob, setHoveredJob] = useState(null);
 
   const toggleSaved = (id) => {
     setSaved((prevSaved) =>
@@ -468,6 +499,12 @@ export default function JobSearchPage() {
     console.log("Applying filters:", newFilters);
   };
 
+  const getMatchQuality = (percentage) => {
+    if (percentage > 85) return "Strong Match";
+    if (percentage >= 70) return "Good Match";
+    return "Fair Match";
+  };
+
   const filteredJobs = jobPostings
     .filter((job) => !blocked.includes(job.id))
     .filter((job) => {
@@ -482,23 +519,23 @@ export default function JobSearchPage() {
     <div className="flex h-screen bg-gray-100">
       {/* Left Sidebar */}
       <div className="w-64 bg-white shadow-md">
-        <div className="flex flex-col h-full">
-          {/* <div className="p-4">
+        {/* <div className="flex flex-col h-full">
+          <div className="p-4">
             <h1 className="text-2xl font-bold">JobRight</h1>
           </div>
           <nav className="flex-1">
             <Button variant="ghost" className="w-full justify-start" size="lg">
-              <Briefcase className="mr-2 h-4 w-4" />
-              Jobs
-            </Button>
-            <Button variant="ghost" className="w-full justify-start" size="lg">
-              <FileText className="mr-2 h-4 w-4" />
-              Resume
-            </Button>
-            <Button variant="ghost" className="w-full justify-start" size="lg">
-              <User className="mr-2 h-4 w-4" />
-              Profile
-            </Button>
+                <Briefcase className="mr-2 h-4 w-4" />
+                Jobs
+              </Button>
+              <Button variant="ghost" className="w-full justify-start" size="lg">
+                <FileText className="mr-2 h-4 w-4" />
+                Resume
+              </Button>
+              <Button variant="ghost" className="w-full justify-start" size="lg">
+                <User className="mr-2 h-4 w-4" />
+                Profile
+              </Button>
           </nav>
           <Button
             variant="ghost"
@@ -507,8 +544,8 @@ export default function JobSearchPage() {
           >
             <LogOut className="mr-2 h-4 w-4" />
             Logout
-          </Button> */}
-        </div>
+          </Button>
+        </div> */}
       </div>
 
       {/* Main Content */}
@@ -582,34 +619,82 @@ export default function JobSearchPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
-                    <div className="flex items-center">
-                      <MapPin className="h-4 w-4 mr-2" />
-                      {job.location}
+                  <div className="flex">
+                    <div className="flex-grow relative">
+                      <div
+                        className={`grid grid-cols-3 gap-2 text-sm transition-opacity duration-300 ${
+                          hoveredJob === job.id ? "opacity-0" : "opacity-100"
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <MapPin className="h-4 w-4 mr-2" />
+                          {job.location}
+                        </div>
+                        <div className="flex items-center">
+                          <Briefcase className="h-4 w-4 mr-2" />
+                          {job.remote === "Yes"
+                            ? "Remote"
+                            : job.remote === "No"
+                            ? "On-site"
+                            : "Hybrid"}
+                        </div>
+                        <div className="flex items-center">
+                          <DollarSign className="h-4 w-4 mr-2" />
+                          {job.salary}
+                        </div>
+                        <div className="flex items-center">
+                          <Clock className="h-4 w-4 mr-2" />
+                          {job.type}
+                        </div>
+                        <div className="flex items-center">
+                          <Users className="h-4 w-4 mr-2" />
+                          {job.level}
+                        </div>
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          {job.yearsExperience} years
+                        </div>
+                      </div>
+                      <div
+                        className={`absolute inset-0 grid grid-cols-3 gap-2 text-sm transition-opacity duration-300 ${
+                          hoveredJob === job.id ? "opacity-100" : "opacity-0"
+                        }`}
+                      >
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="text-xs text-center">
+                            Experience Level
+                          </div>
+                          <div className="text-2xl font-bold">
+                            {job.matchBreakdown.experienceLevel}%
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="text-xs text-center">Skills</div>
+                          <div className="text-2xl font-bold">
+                            {job.matchBreakdown.skills}%
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="text-xs text-center">
+                            Industry Experience
+                          </div>
+                          <div className="text-2xl font-bold">
+                            {job.matchBreakdown.industryExperience}%
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center">
-                      <Briefcase className="h-4 w-4 mr-2" />
-                      {job.remote === "Yes"
-                        ? "Remote"
-                        : job.remote === "No"
-                        ? "On-site"
-                        : "Hybrid"}
-                    </div>
-                    <div className="flex items-center">
-                      <DollarSign className="h-4 w-4 mr-2" />
-                      {job.salary}
-                    </div>
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2" />
-                      {job.type}
-                    </div>
-                    <div className="flex items-center">
-                      <Users className="h-4 w-4 mr-2" />
-                      {job.level}
-                    </div>
-                    <div className="flex items-center">
-                      <Percent className="h-4 w-4 mr-2" />
-                      {job.matchRating}% match
+                    <div
+                      className="w-1/5 flex flex-col items-center justify-center border-l border-gray-200 pl-4"
+                      onMouseEnter={() => setHoveredJob(job.id)} // Moved here
+                      onMouseLeave={() => setHoveredJob(null)} // Moved here
+                    >
+                      <div className="text-3xl font-bold">
+                        {job.matchRating}%
+                      </div>
+                      <div className="text-sm text-muted-foreground text-center">
+                        {getMatchQuality(job.matchRating)}
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -666,21 +751,21 @@ export default function JobSearchPage() {
 
       {/* Right Sidebar */}
       <div className="w-64 bg-white shadow-md">
-        <div className="flex flex-col h-full">
-          {/* <div className="p-4">
+        {/* <div className="flex flex-col h-full">
+          <div className="p-4">
             <h2 className="text-xl font-semibold">Notifications</h2>
           </div>
           <nav className="flex-1">
             <Button variant="ghost" className="w-full justify-start" size="lg">
-              <Bell className="mr-2 h-4 w-4" />
-              Alerts
-            </Button>
-            <Button variant="ghost" className="w-full justify-start" size="lg">
-              <Settings className="mr-2 h-4 w-4" />
-              Preferences
-            </Button>
-          </nav> */}
-        </div>
+                <Bell className="mr-2 h-4 w-4" />
+                Alerts
+              </Button>
+              <Button variant="ghost" className="w-full justify-start" size="lg">
+                <Settings className="mr-2 h-4 w-4" />
+                Preferences
+              </Button>
+          </nav>
+        </div> */}
       </div>
 
       <JobModal
